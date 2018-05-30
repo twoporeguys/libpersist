@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 2.8)
-project(librpc)
+project(libpersist)
 
 find_package (PkgConfig REQUIRED)
 pkg_check_modules (GLIB REQUIRED glib-2.0>=2.40)
+pkg_check_modules(SQLITE3 REQUIRED sqlite3)
 pkg_check_modules(LIBRPC REQUIRED librpc)
 
 set(CMAKE_C_STANDARD 11)
@@ -21,9 +22,12 @@ set(HEADERS
 
 set(CORE_FILES
         src/persist.c
+        src/utils.c
         src/internal.h
         src/linker_set.h)
 
+set(DRIVER_FILES
+        src/drivers/sqlite.c)
 
 if(BUNDLED_BLOCKS_RUNTIME)
     set(CORE_FILES ${CORE_FILES}
@@ -33,7 +37,8 @@ endif()
 
 add_library(libpersist SHARED
         ${HEADERS}
-        ${CORE_FILES})
+        ${CORE_FILES}
+        ${DRIVER_FILES})
 
 set_target_properties(libpersist PROPERTIES PREFIX "")
 set_target_properties(libpersist PROPERTIES SOVERSION 1)

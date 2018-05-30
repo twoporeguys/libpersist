@@ -24,19 +24,30 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <glib.h>
 #include <rpc/object.h>
 #include <persist.h>
+#include "internal.h"
 
 persist_db_t
 persist_open(const char *path, const char *driver, rpc_object_t params)
 {
+	struct persist_db *db;
 
+	db = g_malloc0(sizeof(*db));
+	db->pdb_path = path;
+	db->pdb_driver = persist_find_driver(driver);
+	if (db->pdb_driver->pd_open(db) != 0) {
+		g_free(db);
+		return (NULL);
+	}
+
+	return (db);
 }
 
 void
 persist_close(persist_db_t db)
 {
-
 }
 
 persist_collection_t
@@ -76,27 +87,20 @@ persist_get(persist_collection_t col, const char *id)
 
 }
 
-/**
- *
- * @param col
- * @param query
- * @return
- */
-bool persist_query(persist_collection_t col, rpc_object_t query);
+bool
+persist_query(persist_collection_t col, rpc_object_t query)
+{
 
-/**
- *
- * @param col
- * @param id
- * @param obj
- * @return
- */
-int persist_save(persist_collection_t col, const char *id, rpc_object_t obj);
+}
 
-/**
- *
- * @param col
- * @param id
- * @return
- */
-int persist_delete(persist_collection_t col, const char *id);
+int
+persist_save(persist_collection_t col, const char *id, rpc_object_t obj)
+{
+
+}
+
+int
+persist_delete(persist_collection_t col, const char *id)
+{
+
+}

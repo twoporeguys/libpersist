@@ -135,4 +135,11 @@ int persist_save(persist_collection_t col, const char *id, rpc_object_t obj);
  */
 int persist_delete(persist_collection_t col, const char *id);
 
+/**
+ *
+ * @param msgp
+ * @return
+ */
+int persist_get_last_error(char **msgp);
+
 #endif /* LIBPERSIST_PERSIST_H */

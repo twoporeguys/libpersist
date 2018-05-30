@@ -24,33 +24,46 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef LIBPERSIST_INTERNAL_H
+#define	LIBPERSIST_INTERNAL_H
+
+#include <rpc/object.h>
 #include <glib.h>
 #include "linker_set.h"
 
 #define DECLARE_DRIVER(_driver)		DATA_SET(drv_set, _driver)
 
+struct persist_db;
+
 struct persist_driver
 {
 	const char *		pd_name;
-	int (*open)(struct persist_db *);
-	void (*close)(struct persist_db *);
-	int (*get_collections)(void *, )
-	rpc_object_t (*get_object)(void *, const char *, const char *);
-	int (*save_object)(void *, const char *, rpc_object_t);
-	int (*delete_object)(void *, const char *);
+	int (*pd_open)(struct persist_db *);
+	void (*pd_close)(struct persist_db *);
+	int (*pd_get_collections)(void *, GPtrArray *);
+	int (*pd_create_collection)(void *, const char *);
+	int (*pd_destroy_collection)(void *, const char *);
+	int (*pd_get_object)(void *, const char *, const char *, rpc_object_t *);
+	int (*pd_save_object)(void *, const char *, const char *, rpc_object_t);
+	int (*pd_delete_object)(void *, const char *);
+	int (*pd_query)(void *, const char *, rpc_object_t);
 };
 
 struct persist_db
 {
-	struct persist_driver *	pdb_driver;
-	void *			pdb_arg;
-	const char *		pdb_path;
+	const struct persist_driver *	pdb_driver;
+	void *				pdb_arg;
+	const char *			pdb_path;
 };
 
 struct persist_collection
 {
-	struct persist_db *	pc_db;
-	const char *		pc_name;
-	rpc_object_t		pc_metadata;
+	struct persist_db *		pc_db;
+	const char *			pc_name;
+	rpc_object_t			pc_metadata;
 };
 
+const struct persist_driver *persist_find_driver(const char *name);
+void persist_set_last_error(int code, const char *fmt, ...);
+
+#endif /* LIBPERSIST_INTERNAL_H */

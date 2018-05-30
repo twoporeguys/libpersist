@@ -23,3 +23,67 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <glib.h>
+#include <sqlite3.h>
+#include "../linker_set.h"
+#include "../internal.h"
+
+struct sqlite_context
+{
+	sqlite3 *	sc_db;
+};
+
+static int
+sqlite_open(struct persist_db *db)
+{
+	struct sqlite_context *ctx;
+	int err;
+
+	ctx = g_malloc0(sizeof(*ctx));
+
+	err = sqlite3_open(db->pdb_path, &ctx->sc_db);
+	if (err != SQLITE_OK) {
+
+	}
+
+	db->pdb_arg = ctx;
+	return (0);
+}
+
+static void
+sqlite_close(struct persist_db *db)
+{
+
+}
+
+static int
+sqlite_get_collections(void *arg, GPtrArray *result)
+{
+
+}
+
+static int
+sqlite_get_object(void *arg, const char *collection, const char *id,
+    rpc_object_t *obj)
+{
+
+}
+
+static int
+sqlite_save_object(void *arg, const char *collection, const char *id,
+    rpc_object_t obj)
+{
+
+}
+
+static const struct persist_driver sqlite_driver = {
+	.pd_name = "sqlite",
+	.pd_open = sqlite_open,
+	.pd_close = sqlite_close,
+	.pd_get_collections = sqlite_get_collections,
+	.pd_get_object = sqlite_get_object,
+	.pd_save_object = sqlite_save_object,
+};
+
+DECLARE_DRIVER(sqlite_driver);
