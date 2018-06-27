@@ -32,6 +32,7 @@
 #include "linker_set.h"
 
 #define DECLARE_DRIVER(_driver)		DATA_SET(drv_set, _driver)
+#define	COLLECTIONS			"__collections"
 
 struct persist_db;
 
@@ -45,8 +46,10 @@ struct persist_driver
 	int (*pd_destroy_collection)(void *, const char *);
 	int (*pd_get_object)(void *, const char *, const char *, rpc_object_t *);
 	int (*pd_save_object)(void *, const char *, const char *, rpc_object_t);
-	int (*pd_delete_object)(void *, const char *);
+	int (*pd_delete_object)(void *, const char *, const char *);
 	int (*pd_query)(void *, const char *, rpc_object_t);
+	int (*pd_query_next)(void *, rpc_object_t *);
+	int (*pd_query_close)(void *);
 };
 
 struct persist_db
@@ -61,6 +64,12 @@ struct persist_collection
 	struct persist_db *		pc_db;
 	const char *			pc_name;
 	rpc_object_t			pc_metadata;
+};
+
+struct persist_iter
+{
+	struct persist_collection *	pi_col;
+	void *				pi_arg;
 };
 
 const struct persist_driver *persist_find_driver(const char *name);

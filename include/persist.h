@@ -31,6 +31,7 @@
 
 struct persist_db;
 struct persist_collection;
+struct persist_iter;
 
 /**
  * An open database handle.
@@ -41,6 +42,8 @@ typedef struct persist_db *persist_db_t;
  * A collection handle.
  */
 typedef struct persist_collection *persist_collection_t;
+
+typedef struct persist_iter *persist_iter_t;
 
 /**
  * Opens a database in a file @p path.
@@ -73,24 +76,33 @@ persist_collection_t persist_collection_get(persist_db_t db, const char *name);
 
 /**
  *
- * @param db
- * @param name
+ * @param db Database handle
+ * @param name Collection name
+ * @return
+ */
+bool persist_collection_exists(persist_db_t db, const char *name);
+
+/**
+ *
+ * @param db Database handle
+ * @param name Collection name
  * @return
  */
 int persist_collection_remove(persist_db_t db, const char *name);
 
 /**
+ * Retrieves collection metadata object for collection @p name.
  *
- * @param db
- * @param name
- * @return
+ * @param db Database handle
+ * @param name Collection name
+ * @return Metadata object.
  */
 rpc_object_t persist_collection_get_metadata(persist_db_t db, const char *name);
 
 /**
  *
- * @param db
- * @param name
+ * @param db Database handle
+ * @param name Collection name
  * @param metadata
  * @return
  */
@@ -98,30 +110,30 @@ int persist_collection_set_metadata(persist_db_t db, const char *name,
     rpc_object_t metadata);
 
 /**
- *
+ * @param db Database handle
  */
-void persist_collections_apply(persist_db_t);
+void persist_collections_apply(persist_db_t db);
 
 /**
  *
- * @param col
- * @param id
+ * @param col Collection handle
+ * @param id Primary key
  * @return
  */
 rpc_object_t persist_get(persist_collection_t col, const char *id);
 
 /**
  *
- * @param col
+ * @param col Collection handle
  * @param query
  * @return
  */
-bool persist_query(persist_collection_t col, rpc_object_t query);
+persist_iter_t persist_query(persist_collection_t col, rpc_object_t query);
 
 /**
  *
- * @param col
- * @param id
+ * @param col Collection handle
+ * @param id Primary key
  * @param obj
  * @return
  */
@@ -129,11 +141,24 @@ int persist_save(persist_collection_t col, const char *id, rpc_object_t obj);
 
 /**
  *
- * @param col
- * @param id
+ * @param col Collection handle
+ * @param id Primary key
  * @return
  */
 int persist_delete(persist_collection_t col, const char *id);
+
+/**
+ *
+ * @param iter
+ * @return
+ */
+rpc_object_t persist_iter_next(persist_iter_t iter);
+
+/**
+ *
+ * @param iter
+ */
+void persist_iter_close(persist_iter_t iter);
 
 /**
  *
