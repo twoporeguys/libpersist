@@ -15,7 +15,6 @@ include_directories (${GLIB_INCLUDE_DIRS})
 link_directories(${GLIB_LIBRARY_DIRS})
 include_directories(${LIBRPC_INCLUDE_DIRS})
 link_directories(${LIBRPC_LIBRARY_DIRS})
-link_directories(${YAML_LIBRARY_DIRS})
 
 set(HEADERS
         include/persist.h)
