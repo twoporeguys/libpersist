@@ -32,15 +32,25 @@
 #include "../linker_set.h"
 #include "../internal.h"
 
+#define SQL_CREATE_TABLE	"CREATE TABLE IF NOT EXISTS %s (id TEXT PRIMARY KEY, value TEXT);"
 #define SQL_LIST_TABLES		"SELECT * FROM sqlite_master WHERE TYPE='table';"
-#define	SQL_GET			"SELECT * FROM %s WHERE id = ?;"
-#define	SQL_INSERT		"INSERT INTO %s (id, value) VALUES (?, ?);"
+#define SQL_GET			"SELECT * FROM %s WHERE id = ?;"
+#define SQL_INSERT		"INSERT INTO %s (id, value) VALUES (?, ?);"
 #define SQL_DELETE		"DELETE FROM %s WHERE id = ?;"
 
 struct sqlite_context
 {
 	sqlite3 *	sc_db;
 };
+
+static int sqlite_open(struct persist_db *);
+static void sqlite_close(struct persist_db *);
+static int sqlite_create_collection(void *, const char *);
+static int sqlite_get_collections(void *, GPtrArray *);
+static int sqlite_get_object(void *, const char *, const char *, rpc_object_t *);
+static int sqlite_save_object(void *, const char *, const char *, rpc_object_t);
+static int sqlite_delete_object(void *, const char *, const char *);
+static int sqlite_query(void *, const char *, rpc_object_t);
 
 static int
 sqlite_open(struct persist_db *db)
@@ -68,6 +78,21 @@ sqlite_close(struct persist_db *db)
 	ctx = db->pdb_arg;
 	sqlite3_close(ctx->sc_db);
 	g_free(ctx);
+}
+
+static int
+sqlite_create_collection(void *arg, const char *name)
+{
+	struct sqlite_context *sqlite = arg;
+	char *errmsg;
+	g_autofree char *sql = g_strdup_printf(SQL_CREATE_TABLE, name);
+
+	if (sqlite3_exec(sqlite->sc_db, sql, NULL, NULL, &errmsg) != SQLITE_OK) {
+		persist_set_last_error(ENXIO, "%s", errmsg);
+		return (-1);
+	}
+
+	return (0);
 }
 
 static int
@@ -127,6 +152,7 @@ sqlite_get_object(void *arg, const char *collection, const char *id,
 		return (-1);
 	}
 
+retry:
 	switch (sqlite3_step(stmt)) {
 	case SQLITE_ROW:
 		blob = sqlite3_column_blob(stmt, 2);
@@ -137,6 +163,11 @@ sqlite_get_object(void *arg, const char *collection, const char *id,
 		persist_set_last_error(ENOENT, "Not found");
 		ret = -1;
 		break;
+
+	case SQLITE_LOCKED:
+	case SQLITE_BUSY:
+		g_usleep(10 * 1000); /* 10ms sleep */
+		goto retry;
 
 	case SQLITE_ERROR:
 		persist_set_last_error(EFAULT, "%s",
@@ -200,6 +231,7 @@ sqlite_save_object(void *arg, const char *collection, const char *id,
 		return (-1);
 	}
 
+retry:
 	switch (sqlite3_step(stmt)) {
 	case SQLITE_DONE:
 		break;
@@ -209,6 +241,11 @@ sqlite_save_object(void *arg, const char *collection, const char *id,
 		    sqlite3_errmsg(sqlite->sc_db));
 		ret = -1;
 		break;
+
+	case SQLITE_LOCKED:
+	case SQLITE_BUSY:
+		g_usleep(10 * 1000); /* 10ms sleep */
+		goto retry;
 
 	default:
 		g_assert_not_reached();
@@ -263,12 +300,14 @@ static int
 sqlite_query(void *arg, const char *collection, rpc_object_t query)
 {
 
+	return (-1);
 }
 
 static const struct persist_driver sqlite_driver = {
 	.pd_name = "sqlite",
 	.pd_open = sqlite_open,
 	.pd_close = sqlite_close,
+	.pd_create_collection = sqlite_create_collection,
 	.pd_get_collections = sqlite_get_collections,
 	.pd_get_object = sqlite_get_object,
 	.pd_save_object = sqlite_save_object,

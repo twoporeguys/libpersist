@@ -61,6 +61,22 @@ persist_error_free(void *error)
 	g_free(err);
 }
 
+int
+persist_get_last_error(char **msgp)
+{
+	struct error *err;
+
+	err = g_private_get(&persist_last_error);
+
+	if (err != NULL) {
+		*msgp = g_strdup(err->message);
+		return (err->code);
+	}
+
+	*msgp = NULL;
+	return (0);
+}
+
 void
 persist_set_last_error(int code, const char *fmt, ...)
 {

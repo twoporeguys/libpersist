@@ -84,9 +84,19 @@ persist_collection_get(persist_db_t db, const char *name)
 	rpc_object_t col;
 
 	if (db->pdb_driver->pd_get_object(db->pdb_arg, COLLECTIONS,
-	    name, &col) != 0)
-		return (NULL);
+	    name, &col) != 0) {
+		if (errno == ENOENT) {
+			if (db->pdb_driver->pd_create_collection(
+			    db->pdb_arg, name) != 0)
+				return (NULL);
 
+			goto ok;
+		}
+
+		return (NULL);
+	}
+
+ok:
 	result = g_malloc0(sizeof(*result));
 	result->pc_db = db;
 	result->pc_name = name;
