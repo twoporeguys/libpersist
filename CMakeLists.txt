@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
+include(GNUInstallDirs)
 project(libpersist)
 
 find_package (PkgConfig REQUIRED)
@@ -44,3 +45,8 @@ set_target_properties(libpersist PROPERTIES SOVERSION 1)
 set_target_properties(libpersist PROPERTIES MACOSX_RPATH ON)
 target_link_libraries(libpersist ${GLIB_LIBRARIES})
 target_link_libraries(libpersist ${LIBRPC_LIBRARIES})
+
+configure_file(libpersist.pc.in ${CMAKE_CURRENT_BINARY_DIR}/libpersist.pc @ONLY)
+install(TARGETS libpersist DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libpersist.pc DESTINATION ${CMAKE_INSTALL_PREFIX}/share/pkgconfig)

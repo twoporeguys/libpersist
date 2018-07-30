@@ -18,7 +18,6 @@ build:
 	    -DBUILD_PYTHON=$(BUILD_PYTHON)
 	make -C build
 
-
 clean:
 	rm -rf *~ build
 

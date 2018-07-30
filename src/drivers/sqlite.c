@@ -63,7 +63,11 @@ sqlite_open(struct persist_db *db)
 static void
 sqlite_close(struct persist_db *db)
 {
+	struct sqlite_context *ctx;
 
+	ctx = db->pdb_arg;
+	sqlite3_close(ctx->sc_db);
+	g_free(ctx);
 }
 
 static int
