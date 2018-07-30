@@ -54,15 +54,15 @@ typedef struct persist_iter *persist_iter_t;
  * @param params
  * @return Open database handle
  */
-persist_db_t persist_open(const char *path, const char *driver,
-    rpc_object_t params);
+_Nullable persist_db_t persist_open(const char *_Nonnull path,
+    const char *_Nonnull driver, _Nullable rpc_object_t params);
 
 /**
  * Closes the database handle.
  *
  * @param db Database handle
  */
-void persist_close(persist_db_t db);
+void persist_close(_Nonnull persist_db_t db);
 
 /**
  * Returns a collection handle. If no such collection exists, it will
@@ -72,7 +72,8 @@ void persist_close(persist_db_t db);
  * @param name Collection name
  * @return
  */
-persist_collection_t persist_collection_get(persist_db_t db, const char *name);
+_Nullable persist_collection_t persist_collection_get(
+    _Nonnull persist_db_t db, const char *_Nonnull name);
 
 /**
  *
@@ -80,7 +81,8 @@ persist_collection_t persist_collection_get(persist_db_t db, const char *name);
  * @param name Collection name
  * @return
  */
-bool persist_collection_exists(persist_db_t db, const char *name);
+bool persist_collection_exists(_Nonnull persist_db_t db,
+    const char *_Nonnull name);
 
 /**
  *
@@ -88,7 +90,8 @@ bool persist_collection_exists(persist_db_t db, const char *name);
  * @param name Collection name
  * @return
  */
-int persist_collection_remove(persist_db_t db, const char *name);
+int persist_collection_remove(_Nonnull persist_db_t db,
+    const char *_Nonnull name);
 
 /**
  * Retrieves collection metadata object for collection @p name.
@@ -97,7 +100,8 @@ int persist_collection_remove(persist_db_t db, const char *name);
  * @param name Collection name
  * @return Metadata object.
  */
-rpc_object_t persist_collection_get_metadata(persist_db_t db, const char *name);
+_Nullable rpc_object_t persist_collection_get_metadata(
+    _Nonnull persist_db_t db, const char *_Nonnull name);
 
 /**
  *
@@ -106,13 +110,19 @@ rpc_object_t persist_collection_get_metadata(persist_db_t db, const char *name);
  * @param metadata
  * @return
  */
-int persist_collection_set_metadata(persist_db_t db, const char *name,
-    rpc_object_t metadata);
+int persist_collection_set_metadata(_Nonnull persist_db_t db,
+    const char *_Nonnull name, _Nullable rpc_object_t metadata);
+
+/**
+ *
+ * @param collection
+ */
+void persist_collection_close(_Nonnull persist_collection_t collection);
 
 /**
  * @param db Database handle
  */
-void persist_collections_apply(persist_db_t db);
+void persist_collections_apply(_Nonnull persist_db_t db);
 
 /**
  *
@@ -120,7 +130,8 @@ void persist_collections_apply(persist_db_t db);
  * @param id Primary key
  * @return
  */
-rpc_object_t persist_get(persist_collection_t col, const char *id);
+_Nullable rpc_object_t persist_get(_Nonnull persist_collection_t col,
+    const char *_Nonnull id);
 
 /**
  *
@@ -128,7 +139,8 @@ rpc_object_t persist_get(persist_collection_t col, const char *id);
  * @param query
  * @return
  */
-persist_iter_t persist_query(persist_collection_t col, rpc_object_t query);
+_Nullable persist_iter_t persist_query(_Nonnull persist_collection_t col,
+    _Nullable rpc_object_t query);
 
 /**
  *
@@ -137,7 +149,8 @@ persist_iter_t persist_query(persist_collection_t col, rpc_object_t query);
  * @param obj
  * @return
  */
-int persist_save(persist_collection_t col, const char *id, rpc_object_t obj);
+int persist_save(_Nonnull persist_collection_t col, const char *_Nonnull id,
+    _Nonnull rpc_object_t obj);
 
 /**
  *
@@ -145,26 +158,26 @@ int persist_save(persist_collection_t col, const char *id, rpc_object_t obj);
  * @param id Primary key
  * @return
  */
-int persist_delete(persist_collection_t col, const char *id);
+int persist_delete(_Nonnull persist_collection_t col, const char *_Nonnull id);
 
 /**
  *
  * @param iter
  * @return
  */
-rpc_object_t persist_iter_next(persist_iter_t iter);
+_Nullable rpc_object_t persist_iter_next(_Nonnull persist_iter_t iter);
 
 /**
  *
  * @param iter
  */
-void persist_iter_close(persist_iter_t iter);
+void persist_iter_close(_Nonnull persist_iter_t iter);
 
 /**
  *
  * @param msgp
  * @return
  */
-int persist_get_last_error(char **msgp);
+int persist_get_last_error(char *_Nullable *_Nonnull msgp);
 
 #endif /* LIBPERSIST_PERSIST_H */

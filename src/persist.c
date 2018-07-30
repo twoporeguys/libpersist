@@ -86,11 +86,8 @@ persist_collection_get(persist_db_t db, const char *name)
 	if (db->pdb_driver->pd_get_object(db->pdb_arg, COLLECTIONS,
 	    name, &col) != 0) {
 		if (errno == ENOENT) {
-			if (db->pdb_driver->pd_create_collection(
-			    db->pdb_arg, name) != 0)
-				return (NULL);
-
-			goto ok;
+			if (persist_create_collection(db, name) == 0)
+				goto ok;
 		}
 
 		return (NULL);
@@ -137,6 +134,13 @@ persist_collection_set_metadata(persist_db_t db, const char *name,
 	rpc_dictionary_set_value(result, "metadata", metadata);
 	return (db->pdb_driver->pd_save_object(db->pdb_arg, COLLECTIONS,
 	    name, result));
+}
+
+void
+persist_collection_close(persist_collection_t collection)
+{
+
+	g_free(collection);
 }
 
 void
