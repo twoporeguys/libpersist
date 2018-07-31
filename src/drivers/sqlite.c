@@ -35,12 +35,19 @@
 #define SQL_CREATE_TABLE	"CREATE TABLE IF NOT EXISTS %s (id TEXT PRIMARY KEY, value TEXT);"
 #define SQL_LIST_TABLES		"SELECT * FROM sqlite_master WHERE TYPE='table';"
 #define SQL_GET			"SELECT * FROM %s WHERE id = ?;"
+#define	SQL_QUERY		"SELECT * FROM %s;"
 #define SQL_INSERT		"INSERT INTO %s (id, value) VALUES (?, ?);"
 #define SQL_DELETE		"DELETE FROM %s WHERE id = ?;"
 
 struct sqlite_context
 {
-	sqlite3 *	sc_db;
+	sqlite3 *		sc_db;
+};
+
+struct sqlite_iter
+{
+	struct sqlite_context *	si_sc;
+	sqlite3_stmt *		si_stmt;
 };
 
 static int sqlite_open(struct persist_db *);
@@ -50,7 +57,9 @@ static int sqlite_get_collections(void *, GPtrArray *);
 static int sqlite_get_object(void *, const char *, const char *, rpc_object_t *);
 static int sqlite_save_object(void *, const char *, const char *, rpc_object_t);
 static int sqlite_delete_object(void *, const char *, const char *);
-static int sqlite_query(void *, const char *, rpc_object_t);
+static void *sqlite_query(void *, const char *, rpc_object_t);
+static int sqlite_query_next(void *, rpc_object_t *);
+static void sqlite_query_close(void *);
 
 static int
 sqlite_open(struct persist_db *db)
@@ -296,11 +305,61 @@ sqlite_delete_object(void *arg, const char *collection, const char *id)
 	return (ret);
 }
 
-static int
+static void *
 sqlite_query(void *arg, const char *collection, rpc_object_t query)
 {
+	struct sqlite_context *sqlite = arg;
+	struct sqlite_iter *iter;
+	g_autofree char *sql;
+	sqlite3_stmt *stmt;
 
-	return (-1);
+	sql = g_strdup_printf(SQL_QUERY, collection);
+	if (sqlite3_prepare_v2(sqlite->sc_db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+		persist_set_last_error(errno, "%s", sqlite3_errmsg(sqlite->sc_db));
+		return (NULL);
+	}
+
+	iter = g_malloc0(sizeof(*iter));
+	iter->si_sc = sqlite;
+	iter->si_stmt = stmt;
+	return (iter);
+}
+
+static int
+sqlite_query_next(void *q_arg, rpc_object_t *result)
+{
+	struct sqlite_iter *iter = q_arg;
+
+retry:
+	switch (sqlite3_step(iter->si_stmt)) {
+	case SQLITE_DONE:
+		*result = NULL;
+		return (0);
+
+	case SQLITE_ERROR:
+		persist_set_last_error(EFAULT, "%s",
+		    sqlite3_errmsg(iter->si_sc->sc_db));
+		return (-1);
+
+	case SQLITE_LOCKED:
+	case SQLITE_BUSY:
+		g_usleep(10 * 1000); /* 10ms sleep */
+		goto retry;
+
+
+	default:
+		g_assert_not_reached();
+	}
+}
+
+static void
+sqlite_query_close(void *q_arg)
+{
+	struct sqlite_iter *iter = q_arg;
+
+	sqlite3_finalize(iter->si_stmt);
+	g_free(iter);
+
 }
 
 static const struct persist_driver sqlite_driver = {
@@ -312,7 +371,9 @@ static const struct persist_driver sqlite_driver = {
 	.pd_get_object = sqlite_get_object,
 	.pd_save_object = sqlite_save_object,
 	.pd_delete_object = sqlite_delete_object,
-	.pd_query = sqlite_query
+	.pd_query = sqlite_query,
+	.pd_query_next = sqlite_query_next,
+	.pd_query_close = sqlite_query_close,
 };
 
 DECLARE_DRIVER(sqlite_driver);

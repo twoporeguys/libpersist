@@ -164,7 +164,19 @@ persist_get(persist_collection_t col, const char *id)
 persist_iter_t
 persist_query(persist_collection_t col, rpc_object_t query)
 {
+	struct persist_iter *iter;
 
+	iter = g_malloc0(sizeof(*iter));
+	iter->pi_col = col;
+	iter->pi_arg = col->pc_db->pdb_driver->pd_query(
+	    col->pc_db->pdb_arg, col->pc_name, query);
+
+	if (iter->pi_arg == NULL) {
+		g_free(iter);
+		return (NULL);
+	}
+
+	return (iter);
 }
 
 int
@@ -181,13 +193,21 @@ persist_save(persist_collection_t col, const char *id, rpc_object_t obj)
 rpc_object_t
 persist_iter_next(persist_iter_t iter)
 {
+	rpc_object_t result;
 
+	if (iter->pi_col->pc_db->pdb_driver->pd_query_next(iter->pi_arg,
+	    &result) != 0)
+		return (NULL);
+
+	return (result);
 }
 
 void
 persist_iter_close(persist_iter_t iter)
 {
 
+	iter->pi_col->pc_db->pdb_driver->pd_query_close(iter->pi_arg);
+	g_free(iter);
 }
 
 int

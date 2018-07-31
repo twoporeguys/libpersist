@@ -47,9 +47,9 @@ struct persist_driver
 	int (*pd_get_object)(void *, const char *, const char *, rpc_object_t *);
 	int (*pd_save_object)(void *, const char *, const char *, rpc_object_t);
 	int (*pd_delete_object)(void *, const char *, const char *);
-	int (*pd_query)(void *, const char *, rpc_object_t);
+	void *(*pd_query)(void *, const char *, rpc_object_t);
 	int (*pd_query_next)(void *, rpc_object_t *);
-	int (*pd_query_close)(void *);
+	void (*pd_query_close)(void *);
 };
 
 struct persist_db
