@@ -10,6 +10,10 @@ pkg_check_modules(LIBRPC REQUIRED librpc)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_FLAGS "-fblocks -Wall -Wextra -Wno-unused-parameter ${PKGCONFIG_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "-fblocks -Wall -Wextra -Wno-unused-parameter ${PKGCONFIG_C_FLAGS}")
+set(PYTHON_VERSION python3 CACHE STRING "Target Python version for py-persist")
+
+option(BUILD_PYTHON "Build and install Python extension" ON)
+
 include_directories(include)
 include_directories(/usr/local/include)
 include_directories (${GLIB_INCLUDE_DIRS})
@@ -39,6 +43,40 @@ add_library(libpersist SHARED
         ${HEADERS}
         ${CORE_FILES}
         ${DRIVER_FILES})
+
+function(python_install SETUP_PY)
+    if(EXISTS "$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/lib/${PYTHON_VERSION}/dist-packages")
+        install(CODE "
+        execute_process(
+            COMMAND ${PYTHON} ${SETUP_PY} install
+                --record python_manifest.txt
+                --root=/\$ENV{DESTDIR}
+                --install-lib=${CMAKE_INSTALL_PREFIX}/lib/${PYTHON_VERSION}/dist-packages
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        )")
+    elseif(DEFINED "$ENV{CUSTOM_PREFIX}")
+        install(CODE "
+        execute_process(
+            COMMAND ${PYTHON} ${SETUP_PY} install
+                --record python_manifest.txt
+                --root=/\$ENV{DESTDIR}
+                --prefix=${CMAKE_INSTALL_PREFIX}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        )")
+    else()
+        install(CODE "
+        execute_process(
+            COMMAND ${PYTHON} ${SETUP_PY} install
+                --record python_manifest.txt
+                --root=/\$ENV{DESTDIR}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        )")
+    endif()
+endfunction()
+
+if(BUILD_PYTHON)
+    add_subdirectory(bindings/python)
+endif()
 
 set_target_properties(libpersist PROPERTIES PREFIX "")
 set_target_properties(libpersist PROPERTIES SOVERSION 1)
