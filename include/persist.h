@@ -75,7 +75,7 @@ void persist_close(_Nonnull persist_db_t db);
  * @return
  */
 _Nullable persist_collection_t persist_collection_get(
-    _Nonnull persist_db_t db, const char *_Nonnull name);
+    _Nonnull persist_db_t db, const char *_Nonnull name, bool create);
 
 /**
  *

@@ -78,14 +78,14 @@ persist_close(persist_db_t db)
 }
 
 persist_collection_t
-persist_collection_get(persist_db_t db, const char *name)
+persist_collection_get(persist_db_t db, const char *name, bool create)
 {
 	persist_collection_t result;
 	rpc_object_t col;
 
 	if (db->pdb_driver->pd_get_object(db->pdb_arg, COLLECTIONS,
 	    name, &col) != 0) {
-		if (errno == ENOENT) {
+		if (errno == ENOENT && create) {
 			if (persist_create_collection(db, name) == 0)
 				goto ok;
 		}

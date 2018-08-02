@@ -92,7 +92,29 @@ cmd_list(int argc, char *argv[])
 static int
 cmd_query(int argc, char *argv[])
 {
+	persist_collection_t col;
+	persist_iter_t iter;
+	rpc_object_t obj;
+	char *errmsg;
 
+	col = persist_collection_get(db, argv[0], false);
+	if (col == NULL) {
+		persist_get_last_error(&errmsg);
+		fprintf(stderr, "cannot open collection: %s\n", errmsg);
+		g_free(errmsg);
+		return (-1);
+	}
+
+	iter = persist_query(col, NULL);
+	for (;;) {
+		obj = persist_iter_next(iter);
+		if (obj == NULL)
+			break;
+
+		printf("%s\n", rpc_copy_description(obj));
+	}
+
+	return (0);
 }
 
 static int
@@ -101,7 +123,7 @@ cmd_get(int argc, char *argv[])
 	persist_collection_t col;
 	rpc_auto_object_t obj;
 
-	col = persist_collection_get(db, argv[0]);
+	col = persist_collection_get(db, argv[0], false);
 	obj = persist_get(col, argv[1]);
 
 

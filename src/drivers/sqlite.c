@@ -25,6 +25,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <glib.h>
 #include <sqlite3.h>
@@ -51,6 +52,7 @@ struct sqlite_iter
 	sqlite3_stmt *		si_stmt;
 };
 
+static int sqlite_trace_callback(unsigned int, void *, void *, void *);
 static int sqlite_unpack(sqlite3_stmt *, rpc_object_t *);
 static int sqlite_open(struct persist_db *);
 static void sqlite_close(struct persist_db *);
@@ -62,6 +64,29 @@ static int sqlite_delete_object(void *, const char *, const char *);
 static void *sqlite_query(void *, const char *, rpc_object_t);
 static int sqlite_query_next(void *, rpc_object_t *);
 static void sqlite_query_close(void *);
+
+static int
+sqlite_trace_callback(unsigned int code, void *ctx, void *p, void *x)
+{
+	sqlite3_stmt *stmt = p;
+	char *sql;
+	const uint8_t *id;
+
+	if (code == SQLITE_TRACE_STMT) {
+		sql = sqlite3_expanded_sql(stmt);
+		fprintf(stderr, "(%p): executing %s\n", ctx, sql);
+		sqlite3_free(sql);
+		return (0);
+	}
+
+	if (code == SQLITE_TRACE_ROW) {
+		id = sqlite3_column_text(stmt, 1);
+		fprintf(stderr, "(%p): row %s\n", ctx, (const char *)id);
+		return (0);
+	}
+
+	g_assert_not_reached();
+}
 
 static int
 sqlite_unpack(sqlite3_stmt *stmt, rpc_object_t *result)
@@ -107,6 +132,12 @@ sqlite_open(struct persist_db *db)
 	if (err != SQLITE_OK) {
 		persist_set_last_error(errno, "%s", sqlite3_errstr(err));
 		return (-1);
+	}
+
+	if (g_strcmp0(g_getenv("LIBPERSIST_LOGGING"), "stderr") == 0) {
+		sqlite3_trace_v2(ctx->sc_db,
+		    SQLITE_TRACE_STMT | SQLITE_TRACE_ROW,
+		    sqlite_trace_callback, ctx);
 	}
 
 	db->pdb_arg = ctx;
@@ -160,6 +191,11 @@ sqlite_get_collections(void *arg, GPtrArray *result)
 
 		case SQLITE_DONE:
 			goto endloop;
+
+		default:
+			persist_set_last_error(EFAULT, "%s",
+			    sqlite3_errmsg(sqlite->sc_db));
+			return (-1);
 		}
 
 endloop:
@@ -209,14 +245,10 @@ retry:
 		g_usleep(10 * 1000); /* 10ms sleep */
 		goto retry;
 
-	case SQLITE_ERROR:
+	default:
 		persist_set_last_error(EFAULT, "%s",
 		    sqlite3_errmsg(sqlite->sc_db));
-		ret = -1;
-		break;
-
-	default:
-		g_assert_not_reached();
+		return (-1);
 	}
 
 
@@ -237,6 +269,7 @@ sqlite_save_object(void *arg, const char *collection, const char *id,
 	sqlite3_stmt *stmt;
 	rpc_object_t error;
 	int ret = 0;
+	int err;
 
 	if (rpc_serializer_dump("json", obj, &buf, &len) != 0) {
 		error = rpc_get_last_error();
@@ -263,14 +296,9 @@ sqlite_save_object(void *arg, const char *collection, const char *id,
 	}
 
 retry:
-	switch (sqlite3_step(stmt)) {
+	err = sqlite3_step(stmt);
+	switch (err) {
 	case SQLITE_DONE:
-		break;
-
-	case SQLITE_ERROR:
-		persist_set_last_error(EFAULT, "%s",
-		    sqlite3_errmsg(sqlite->sc_db));
-		ret = -1;
 		break;
 
 	case SQLITE_LOCKED:
@@ -279,7 +307,9 @@ retry:
 		goto retry;
 
 	default:
-		g_assert_not_reached();
+		persist_set_last_error(EFAULT, "%s",
+		    sqlite3_errmsg(sqlite->sc_db));
+		return (-1);
 	}
 
 	sqlite3_finalize(stmt);
@@ -312,14 +342,10 @@ sqlite_delete_object(void *arg, const char *collection, const char *id)
 	case SQLITE_DONE:
 		break;
 
-	case SQLITE_ERROR:
+	default:
 		persist_set_last_error(EFAULT, "%s",
 		    sqlite3_errmsg(sqlite->sc_db));
-		ret = -1;
-		break;
-
-	default:
-		g_assert_not_reached();
+		return (-1);
 	}
 
 	sqlite3_finalize(stmt);
@@ -363,10 +389,6 @@ retry:
 	case SQLITE_ROW:
 		return (sqlite_unpack(iter->si_stmt, result));
 
-	case SQLITE_ERROR:
-		persist_set_last_error(EFAULT, "%s",
-		    sqlite3_errmsg(iter->si_sc->sc_db));
-		return (-1);
 
 	case SQLITE_LOCKED:
 	case SQLITE_BUSY:
@@ -374,8 +396,9 @@ retry:
 		goto retry;
 
 	default:
-		fprintf(stderr, "fatal: unhandled sqlite return %d\n", ret);
-		g_assert_not_reached();
+		persist_set_last_error(EFAULT, "%s",
+		    sqlite3_errmsg(iter->si_sc->sc_db));
+		return (-1);
 	}
 }
 
