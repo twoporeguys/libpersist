@@ -24,6 +24,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdio.h>
 #include <errno.h>
 #include <glib.h>
 #include <sqlite3.h>
@@ -50,6 +51,7 @@ struct sqlite_iter
 	sqlite3_stmt *		si_stmt;
 };
 
+static int sqlite_unpack(sqlite3_stmt *, rpc_object_t *);
 static int sqlite_open(struct persist_db *);
 static void sqlite_close(struct persist_db *);
 static int sqlite_create_collection(void *, const char *);
@@ -60,6 +62,38 @@ static int sqlite_delete_object(void *, const char *, const char *);
 static void *sqlite_query(void *, const char *, rpc_object_t);
 static int sqlite_query_next(void *, rpc_object_t *);
 static void sqlite_query_close(void *);
+
+static int
+sqlite_unpack(sqlite3_stmt *stmt, rpc_object_t *result)
+{
+	const uint8_t *id;
+	const void *blob;
+	size_t len;
+	rpc_object_t obj;
+
+	id = sqlite3_column_text(stmt, 0);
+	blob = sqlite3_column_text(stmt, 1);
+	len = (size_t)sqlite3_column_bytes(stmt, 1);
+
+	if (blob == NULL) {
+		return (-1);
+	}
+
+	obj = rpc_serializer_load("json", blob, len);
+	if (obj == NULL) {
+		obj = rpc_get_last_error();
+		persist_set_last_error(rpc_error_get_code(obj),
+		    rpc_error_get_message(obj));
+
+	}
+
+	rpc_dictionary_set_string(obj, "id", (const char *)id);
+
+	if (result != NULL)
+		*result = obj;
+
+	return (0);
+}
 
 static int
 sqlite_open(struct persist_db *db)
@@ -143,8 +177,6 @@ sqlite_get_object(void *arg, const char *collection, const char *id,
 	struct sqlite_context *sqlite = arg;
 	sqlite3_stmt *stmt;
 	char *sql;
-	const void *blob = NULL;
-	size_t len = 0;
 	rpc_object_t result = NULL;
 	int ret = 0;
 
@@ -164,8 +196,7 @@ sqlite_get_object(void *arg, const char *collection, const char *id,
 retry:
 	switch (sqlite3_step(stmt)) {
 	case SQLITE_ROW:
-		blob = sqlite3_column_blob(stmt, 2);
-		len = (size_t)sqlite3_column_bytes(stmt, 2);
+		ret = sqlite_unpack(stmt, obj);
 		break;
 
 	case SQLITE_DONE:
@@ -188,15 +219,6 @@ retry:
 		g_assert_not_reached();
 	}
 
-	if (blob != NULL) {
-		result = rpc_serializer_load("json", blob, len);
-		if (result == NULL) {
-			result = rpc_get_last_error();
-			persist_set_last_error(rpc_error_get_code(result),
-			    rpc_error_get_message(result));
-			ret = -1;
-		}
-	}
 
 	sqlite3_finalize(stmt);
 	g_free(sql);
@@ -329,12 +351,17 @@ static int
 sqlite_query_next(void *q_arg, rpc_object_t *result)
 {
 	struct sqlite_iter *iter = q_arg;
+	int ret;
 
 retry:
-	switch (sqlite3_step(iter->si_stmt)) {
+	ret = sqlite3_step(iter->si_stmt);
+	switch (ret) {
 	case SQLITE_DONE:
 		*result = NULL;
 		return (0);
+
+	case SQLITE_ROW:
+		return (sqlite_unpack(iter->si_stmt, result));
 
 	case SQLITE_ERROR:
 		persist_set_last_error(EFAULT, "%s",
@@ -346,8 +373,8 @@ retry:
 		g_usleep(10 * 1000); /* 10ms sleep */
 		goto retry;
 
-
 	default:
+		fprintf(stderr, "fatal: unhandled sqlite return %d\n", ret);
 		g_assert_not_reached();
 	}
 }

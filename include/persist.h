@@ -45,6 +45,8 @@ typedef struct persist_collection *persist_collection_t;
 
 typedef struct persist_iter *persist_iter_t;
 
+typedef bool (^persist_collection_iter_t)(const char *_Nonnull name);
+
 /**
  * Opens a database in a file @p path.
  *
@@ -122,7 +124,8 @@ void persist_collection_close(_Nonnull persist_collection_t collection);
 /**
  * @param db Database handle
  */
-void persist_collections_apply(_Nonnull persist_db_t db);
+void persist_collections_apply(_Nonnull persist_db_t db,
+    _Nonnull persist_collection_iter_t fn);
 
 /**
  *

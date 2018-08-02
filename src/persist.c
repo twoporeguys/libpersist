@@ -125,6 +125,7 @@ persist_collection_set_metadata(persist_db_t db, const char *name,
     rpc_object_t metadata)
 {
 	rpc_object_t result;
+
 	if (db->pdb_driver->pd_get_object(db->pdb_arg, COLLECTIONS,
 	    name, &result) != 0) {
 		persist_set_last_error(ENOENT, "Collection not found");
@@ -144,9 +145,22 @@ persist_collection_close(persist_collection_t collection)
 }
 
 void
-persist_collections_apply(persist_db_t db)
+persist_collections_apply(persist_db_t db, persist_collection_iter_t fn)
 {
+	void * iter;
+	rpc_object_t collection;
 
+	iter = db->pdb_driver->pd_query(db->pdb_arg, COLLECTIONS, NULL);
+
+	for (;;) {
+		if (db->pdb_driver->pd_query_next(iter, &collection) != 0)
+			return;
+
+		if (collection == NULL)
+			return;
+
+		fn(rpc_dictionary_get_string(collection, "id"));
+	}
 }
 
 rpc_object_t
