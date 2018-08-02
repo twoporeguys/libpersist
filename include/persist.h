@@ -48,6 +48,15 @@ typedef struct persist_iter *persist_iter_t;
 typedef bool (^persist_collection_iter_t)(const char *_Nonnull name);
 
 /**
+ * Converts function pointer to a persist_collection_iter_t block type.
+ */
+#define	PERSIST_COLLECTION_ITER(_fn, _arg)		\
+	^(const char *_name) {				\
+                return ((bool)_fn(_arg, _name));	\
+        }
+
+
+/**
  * Opens a database in a file @p path.
  *
  * If the database file doesn't exist, it will get created.
