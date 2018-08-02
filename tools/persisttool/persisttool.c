@@ -36,12 +36,13 @@ static int cmd_query(int, char *[]);
 static int cmd_get(int, char *[]);
 static int cmd_insert(int, char *[]);
 static int cmd_delete(int, char *[]);
-
+static void usage(void);
 
 static const char *file;
 static const char *driver = "sqlite";
 static char **args;
 static persist_db_t db;
+static GOptionContext *context;
 
 static struct {
 	const char *name;
@@ -97,6 +98,11 @@ cmd_query(int argc, char *argv[])
 	rpc_object_t obj;
 	char *errmsg;
 
+	if (argc < 1) {
+		usage();
+		return (1);
+	}
+
 	col = persist_collection_get(db, argv[0], false);
 	if (col == NULL) {
 		persist_get_last_error(&errmsg);
@@ -123,6 +129,11 @@ cmd_get(int argc, char *argv[])
 	persist_collection_t col;
 	rpc_auto_object_t obj;
 
+	if (argc < 2) {
+		usage();
+		return (1);
+	}
+
 	col = persist_collection_get(db, argv[0], false);
 	obj = persist_get(col, argv[1]);
 
@@ -141,11 +152,19 @@ cmd_delete(int argc, char *argv[])
 
 }
 
+static void
+usage(void)
+{
+	g_autofree char *help;
+
+	help = g_option_context_get_help(context, true, NULL);
+	fprintf(stderr, "%s", help);
+}
+
 int
 main(int argc, char *argv[])
 {
 	GError *err = NULL;
-	GOptionContext *context;
 	const char *cmd;
 	int nargs;
 	int i;
@@ -154,16 +173,16 @@ main(int argc, char *argv[])
 	g_option_context_add_main_entries(context, options, NULL);
 
 	if (!g_option_context_parse(context, &argc, &argv, &err)) {
-
+		usage();
+		return (1);
 	}
 
 	if (open_db(file, driver) != 0)
 		return (1);
 
-
 	if (args == NULL) {
-		fprintf(stderr, "No command specified. "
-		    "Use \"persisttool -h\" to get help.\n");
+		fprintf(stderr, "No command specified.\n");
+		usage();
 		return (1);
 	}
 
@@ -175,7 +194,7 @@ main(int argc, char *argv[])
 			return (commands[i].fn(nargs - 1, args + 1));
 	}
 
-	fprintf(stderr, "Command %s not found, use \"persisttool -h\" to "
-	    "get help\n", cmd);
+	fprintf(stderr, "Command %s not found\n", cmd);
+	usage();
 	return (1);
 }

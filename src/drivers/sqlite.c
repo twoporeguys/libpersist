@@ -81,7 +81,8 @@ sqlite_trace_callback(unsigned int code, void *ctx, void *p, void *x)
 
 	if (code == SQLITE_TRACE_ROW) {
 		id = sqlite3_column_text(stmt, 1);
-		fprintf(stderr, "(%p): row %s\n", ctx, (const char *)id);
+		fprintf(stderr, "(%p): table %s: returning row %s\n", ctx,
+		    sqlite3_column_table_name(stmt, 1), (const char *)id);
 		return (0);
 	}
 
