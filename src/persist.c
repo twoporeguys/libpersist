@@ -100,6 +100,12 @@ ok:
 	return (result);
 }
 
+bool
+persist_collection_exists(persist_db_t db, const char *name)
+{
+
+}
+
 int
 persist_collection_remove(persist_db_t db, const char *name)
 {
