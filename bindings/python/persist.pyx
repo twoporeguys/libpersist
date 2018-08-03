@@ -114,7 +114,7 @@ cdef class Database(object):
     def list_collections(self):
         names = []
         def collect(name):
-            names.append(name)
+            names.append(name.decode('utf-8'))
 
         persist_collections_apply(
             self.db,
