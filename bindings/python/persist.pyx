@@ -24,13 +24,14 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
-cimport librpc
+from librpc import ObjectType
+from librpc cimport Object
 cimport persist
 
 
 cdef class Database(object):
     def __init__(self, path, driver, params=None):
-        cdef librpc.Object rpc_params = librpc.Object(params)
+        cdef Object rpc_params = Object(params)
 
         if not isinstance(path, str):
             raise TypeError('Path needs to be a string')
@@ -38,7 +39,7 @@ cdef class Database(object):
         if not isinstance(driver, str):
             raise TypeError('Driver needs to be a string')
 
-        if params and not isinstance(params, librpc.Object):
+        if params and not isinstance(params, Object):
             raise TypeError('Params needs to be a librpc Object or None')
 
         self.db = persist_open(path.encode('utf-8'), driver.encode('utf-8'), rpc_params.unwrap())
@@ -98,10 +99,10 @@ cdef class Database(object):
 
         metadata = persist_collection_get_metadata(self.db, name.encode('utf-8'))
 
-        return librpc.Object.wrap(metadata).unpack()
+        return Object.wrap(metadata).unpack()
 
     def set_collection_metadata(self, name, metadata):
-        cdef librpc.Object rpc_metadata = librpc.Object(metadata)
+        cdef Object rpc_metadata = Object(metadata)
 
         if not isinstance(name, str):
             raise TypeError('Collection name needs to be a string')
@@ -163,15 +164,18 @@ cdef class Collection(object):
         if ret == <rpc_object_t>NULL:
             return default
 
-        return librpc.Object.wrap(ret).unpack()
+        return Object.wrap(ret).unpack()
 
     def set(self, id, value):
-        cdef librpc.Object rpc_value
+        cdef Object rpc_value
 
         if not isinstance(id, str):
             raise TypeError('Id needs to be a string')
 
-        rpc_value = librpc.Object(value)
+        rpc_value = Object(value)
+        if rpc_value.type != ObjectType.DICTIONARY:
+            raise TypeError('Value has to be a dictionary')
+
         persist_save(self.collection, id.encode('utf-8'), rpc_value.unwrap())
 
     def delete(self, id):
@@ -182,7 +186,7 @@ cdef class Collection(object):
 
     def query(self, params):
         cdef persist_iter_t iter
-        cdef librpc.Object rpc_params = librpc.Object(params)
+        cdef Object rpc_params = Object(params)
 
         iter = persist_query(self.collection, rpc_params.unwrap())
         return CollectionIterator.wrap(iter)
@@ -207,7 +211,7 @@ cdef class CollectionIterator(object):
             self.cnt = False
             raise StopIteration
 
-        return librpc.Object.wrap(result).unpack()
+        return Object.wrap(result).unpack()
 
     def next(self):
         return self.__next__()
