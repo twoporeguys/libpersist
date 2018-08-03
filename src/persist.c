@@ -96,7 +96,7 @@ persist_collection_get(persist_db_t db, const char *name, bool create)
 ok:
 	result = g_malloc0(sizeof(*result));
 	result->pc_db = db;
-	result->pc_name = name;
+	result->pc_name = g_strdup(name);
 	return (result);
 }
 
@@ -149,6 +149,7 @@ void
 persist_collection_close(persist_collection_t collection)
 {
 
+	g_free(collection->pc_name);
 	g_free(collection);
 }
 
@@ -236,4 +237,6 @@ int
 persist_delete(persist_collection_t col, const char *id)
 {
 
+	return (col->pc_db->pdb_driver->pd_delete_object(col->pc_db->pdb_arg,
+	    col->pc_name, id));
 }

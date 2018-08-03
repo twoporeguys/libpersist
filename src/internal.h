@@ -62,7 +62,7 @@ struct persist_db
 struct persist_collection
 {
 	struct persist_db *		pc_db;
-	const char *			pc_name;
+	char *				pc_name;
 	rpc_object_t			pc_metadata;
 };
 

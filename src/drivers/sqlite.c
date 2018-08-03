@@ -292,7 +292,8 @@ sqlite_save_object(void *arg, const char *collection, const char *id,
 		return (-1);
 	}
 
-	if (sqlite3_bind_blob64(stmt, 2, buf, (uint64_t)len, SQLITE_STATIC) != SQLITE_OK) {
+	if (sqlite3_bind_text64(stmt, 2, buf, (uint64_t)len, SQLITE_STATIC,
+	    SQLITE_UTF8) != SQLITE_OK) {
 		persist_set_last_error(errno, "%s", sqlite3_errmsg(sqlite->sc_db));
 		return (-1);
 	}
