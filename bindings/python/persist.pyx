@@ -38,7 +38,7 @@ cdef class Database(object):
         if not isinstance(driver, str):
             raise TypeError('Driver needs to be a string')
 
-        if not isinstance(params, (librpc.Object, None)):
+        if params and not isinstance(params, librpc.Object):
             raise TypeError('Params needs to be a librpc Object or None')
 
         self.db = persist_open(path.encode('utf-8'), driver.encode('utf-8'), rpc_params.unwrap())
