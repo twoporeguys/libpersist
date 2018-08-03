@@ -181,6 +181,14 @@ persist_get(persist_collection_t col, const char *id)
 	    col->pc_name, id, &result) != 0)
 		return (NULL);
 
+	if (rpc_get_type(result) != RPC_TYPE_DICTIONARY) {
+		persist_set_last_error(EINVAL,
+		    "A non-dictionary object returned");
+		rpc_release_impl(result);
+		return (NULL);
+	}
+
+	rpc_dictionary_set_string(result, "id", id);
 	return (result);
 }
 
@@ -205,6 +213,11 @@ persist_query(persist_collection_t col, rpc_object_t query)
 int
 persist_save(persist_collection_t col, const char *id, rpc_object_t obj)
 {
+
+	if (rpc_get_type(obj) != RPC_TYPE_DICTIONARY) {
+		persist_set_last_error(EINVAL, "Not a dictionary");
+		return (-1);
+	}
 
 	if (col->pc_db->pdb_driver->pd_save_object(col->pc_db->pdb_arg,
 	    col->pc_name, id, obj) != 0)

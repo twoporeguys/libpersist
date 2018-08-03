@@ -113,8 +113,6 @@ sqlite_unpack(sqlite3_stmt *stmt, rpc_object_t *result)
 
 	}
 
-	rpc_dictionary_set_string(obj, "id", (const char *)id);
-
 	if (result != NULL)
 		*result = obj;
 
