@@ -255,7 +255,8 @@ retry:
 
 	sqlite3_finalize(stmt);
 	g_free(sql);
-	*obj = result;
+	if (obj != NULL)
+		*obj = result;
 	return (ret);
 }
 
