@@ -188,6 +188,6 @@ void persist_iter_close(_Nonnull persist_iter_t iter);
  * @param msgp
  * @return
  */
-int persist_get_last_error(char *_Nullable *_Nonnull msgp);
+int persist_get_last_error(const char *_Nullable *_Nonnull msgp);
 
 #endif /* LIBPERSIST_PERSIST_H */

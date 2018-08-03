@@ -69,7 +69,7 @@ persist_get_last_error(char **msgp)
 	err = g_private_get(&persist_last_error);
 
 	if (err != NULL) {
-		*msgp = g_strdup(err->message);
+		*msgp = err->message;
 		return (err->code);
 	}
 

@@ -77,13 +77,12 @@ static const GOptionEntry options[] = {
 static int
 open_db(const char *filename, const char *driver)
 {
-	char *errmsg;
+	const char *errmsg;
 
 	db = persist_open(filename, driver, NULL);
 	if (db == NULL) {
 		persist_get_last_error(&errmsg);
 		fprintf(stderr, "Cannot open database: %s\n", errmsg);
-		g_free(errmsg);
 		return (-1);
 	}
 
@@ -167,7 +166,7 @@ cmd_query(int argc, char *argv[])
 	persist_collection_t col;
 	persist_iter_t iter;
 	rpc_object_t obj;
-	char *errmsg;
+	const char *errmsg;
 
 	if (argc < 1) {
 		usage();
@@ -178,7 +177,6 @@ cmd_query(int argc, char *argv[])
 	if (col == NULL) {
 		persist_get_last_error(&errmsg);
 		fprintf(stderr, "cannot open collection: %s\n", errmsg);
-		g_free(errmsg);
 		return (-1);
 	}
 
@@ -198,7 +196,7 @@ static int
 cmd_get_metadata(int argc, char *argv[])
 {
 	rpc_auto_object_t metadata = NULL;
-	char *errmsg;
+	const char *errmsg;
 
 	if (argc < 1) {
 		usage();
@@ -209,7 +207,6 @@ cmd_get_metadata(int argc, char *argv[])
 	if (metadata == NULL) {
 		persist_get_last_error(&errmsg);
 		fprintf(stderr, "cannot read metadata: %s\n", errmsg);
-		g_free(errmsg);
 		return (1);
 	}
 
@@ -228,7 +225,7 @@ cmd_get(int argc, char *argv[])
 {
 	persist_collection_t col;
 	rpc_auto_object_t obj = NULL;
-	char *errmsg;
+	const char *errmsg;
 
 	if (argc < 2) {
 		usage();
@@ -240,7 +237,6 @@ cmd_get(int argc, char *argv[])
 	if (obj == NULL) {
 		persist_get_last_error(&errmsg);
 		fprintf(stderr, "cannot find object: %s\n", errmsg);
-		g_free(errmsg);
 		return (1);
 	}
 
@@ -253,7 +249,7 @@ cmd_insert(int argc, char *argv[])
 {
 	persist_collection_t col;
 	rpc_auto_object_t obj = NULL;
-	char *errmsg;
+	const char *errmsg;
 
 	if (argc < 2) {
 		usage();
@@ -269,7 +265,6 @@ cmd_insert(int argc, char *argv[])
 	if (persist_save(col, obj) != 0) {
 		persist_get_last_error(&errmsg);
 		fprintf(stderr, "cannot save object: %s\n", errmsg);
-		g_free(errmsg);
 	}
 
 	return (0);
