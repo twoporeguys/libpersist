@@ -75,6 +75,8 @@ persist_open(const char *path, const char *driver, rpc_object_t params)
 void
 persist_close(persist_db_t db)
 {
+
+	db->pdb_driver->pd_close(db->pdb_arg);
 }
 
 persist_collection_t
