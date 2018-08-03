@@ -156,19 +156,19 @@ persist_collection_close(persist_collection_t collection)
 void
 persist_collections_apply(persist_db_t db, persist_collection_iter_t fn)
 {
-	void * iter;
-	rpc_object_t collection;
+	void *iter;
+	char *id;
 
 	iter = db->pdb_driver->pd_query(db->pdb_arg, COLLECTIONS, NULL);
 
 	for (;;) {
-		if (db->pdb_driver->pd_query_next(iter, &collection) != 0)
+		if (db->pdb_driver->pd_query_next(iter, &id, NULL) != 0)
 			return;
 
-		if (collection == NULL)
+		if (id == NULL)
 			return;
 
-		fn(rpc_dictionary_get_string(collection, "id"));
+		fn(id);
 	}
 }
 
@@ -211,13 +211,16 @@ persist_query(persist_collection_t col, rpc_object_t query)
 }
 
 int
-persist_save(persist_collection_t col, const char *id, rpc_object_t obj)
+persist_save(persist_collection_t col, rpc_object_t obj)
 {
+	const char *id;
 
 	if (rpc_get_type(obj) != RPC_TYPE_DICTIONARY) {
 		persist_set_last_error(EINVAL, "Not a dictionary");
 		return (-1);
 	}
+
+	id = rpc_dictionary_get_string(obj, "id");
 
 	if (col->pc_db->pdb_driver->pd_save_object(col->pc_db->pdb_arg,
 	    col->pc_name, id, obj) != 0)
@@ -230,11 +233,13 @@ rpc_object_t
 persist_iter_next(persist_iter_t iter)
 {
 	rpc_object_t result;
+	char *id;
 
 	if (iter->pi_col->pc_db->pdb_driver->pd_query_next(iter->pi_arg,
-	    &result) != 0)
+	    &id, &result) != 0)
 		return (NULL);
 
+	rpc_dictionary_set_string(result, "id", id);
 	return (result);
 }
 

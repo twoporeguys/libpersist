@@ -65,7 +65,7 @@ cdef extern from "persist.h":
     void persist_collections_apply(persist_db_t db, void *applier)
     rpc_object_t persist_get(persist_collection_t col, const char *id)
     persist_iter_t persist_query(persist_collection_t col, rpc_object_t query)
-    int persist_save(persist_collection_t col, const char *id, rpc_object_t obj)
+    int persist_save(persist_collection_t col, rpc_object_t obj)
     int persist_delete(persist_collection_t col, const char *id)
     int persist_get_last_error(char **msgp)
     void persist_collection_close(persist_collection_t collection)

@@ -166,17 +166,14 @@ cdef class Collection(object):
 
         return Object.wrap(ret).unpack()
 
-    def set(self, id, value):
+    def set(self, value):
         cdef Object rpc_value
-
-        if not isinstance(id, str):
-            raise TypeError('Id needs to be a string')
 
         rpc_value = Object(value)
         if rpc_value.type != ObjectType.DICTIONARY:
             raise TypeError('Value has to be a dictionary')
 
-        persist_save(self.collection, id.encode('utf-8'), rpc_value.unwrap())
+        persist_save(self.collection, rpc_value.unwrap())
 
     def delete(self, id):
         if not isinstance(id, str):

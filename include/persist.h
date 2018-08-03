@@ -157,12 +157,10 @@ _Nullable persist_iter_t persist_query(_Nonnull persist_collection_t col,
 /**
  *
  * @param col Collection handle
- * @param id Primary key
- * @param obj
+ * @param obj Object to save
  * @return
  */
-int persist_save(_Nonnull persist_collection_t col, const char *_Nonnull id,
-    _Nonnull rpc_object_t obj);
+int persist_save(_Nonnull persist_collection_t col, _Nonnull rpc_object_t obj);
 
 /**
  *

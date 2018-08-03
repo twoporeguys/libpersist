@@ -53,7 +53,7 @@ struct sqlite_iter
 };
 
 static int sqlite_trace_callback(unsigned int, void *, void *, void *);
-static int sqlite_unpack(sqlite3_stmt *, rpc_object_t *);
+static int sqlite_unpack(sqlite3_stmt *, char **, rpc_object_t *);
 static int sqlite_open(struct persist_db *);
 static void sqlite_close(struct persist_db *);
 static int sqlite_create_collection(void *, const char *);
@@ -62,7 +62,7 @@ static int sqlite_get_object(void *, const char *, const char *, rpc_object_t *)
 static int sqlite_save_object(void *, const char *, const char *, rpc_object_t);
 static int sqlite_delete_object(void *, const char *, const char *);
 static void *sqlite_query(void *, const char *, rpc_object_t);
-static int sqlite_query_next(void *, rpc_object_t *);
+static int sqlite_query_next(void *, char **id, rpc_object_t *);
 static void sqlite_query_close(void *);
 
 static int
@@ -90,7 +90,7 @@ sqlite_trace_callback(unsigned int code, void *ctx, void *p, void *x)
 }
 
 static int
-sqlite_unpack(sqlite3_stmt *stmt, rpc_object_t *result)
+sqlite_unpack(sqlite3_stmt *stmt, char **idp, rpc_object_t *result)
 {
 	const uint8_t *id;
 	const void *blob;
@@ -112,6 +112,9 @@ sqlite_unpack(sqlite3_stmt *stmt, rpc_object_t *result)
 		    rpc_error_get_message(obj));
 
 	}
+
+	if (idp != NULL)
+		*idp = g_strdup((const char *)id);
 
 	if (result != NULL)
 		*result = obj;
@@ -212,7 +215,6 @@ sqlite_get_object(void *arg, const char *collection, const char *id,
 	struct sqlite_context *sqlite = arg;
 	sqlite3_stmt *stmt;
 	char *sql;
-	rpc_object_t result = NULL;
 	int ret = 0;
 
 	sql = g_strdup_printf(SQL_GET, collection);
@@ -231,7 +233,7 @@ sqlite_get_object(void *arg, const char *collection, const char *id,
 retry:
 	switch (sqlite3_step(stmt)) {
 	case SQLITE_ROW:
-		ret = sqlite_unpack(stmt, obj);
+		ret = sqlite_unpack(stmt, NULL, obj);
 		break;
 
 	case SQLITE_DONE:
@@ -253,8 +255,6 @@ retry:
 
 	sqlite3_finalize(stmt);
 	g_free(sql);
-	if (obj != NULL)
-		*obj = result;
 	return (ret);
 }
 
@@ -375,7 +375,7 @@ sqlite_query(void *arg, const char *collection, rpc_object_t query)
 }
 
 static int
-sqlite_query_next(void *q_arg, rpc_object_t *result)
+sqlite_query_next(void *q_arg, char **id, rpc_object_t *result)
 {
 	struct sqlite_iter *iter = q_arg;
 	int ret;
@@ -388,7 +388,7 @@ retry:
 		return (0);
 
 	case SQLITE_ROW:
-		return (sqlite_unpack(iter->si_stmt, result));
+		return (sqlite_unpack(iter->si_stmt, id, result));
 
 
 	case SQLITE_LOCKED:
