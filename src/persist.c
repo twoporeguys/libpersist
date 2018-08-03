@@ -114,6 +114,7 @@ int
 persist_collection_remove(persist_db_t db, const char *name)
 {
 
+	return (db->pdb_driver->pd_destroy_collection(db->pdb_arg, name));
 }
 
 rpc_object_t
