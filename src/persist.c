@@ -104,6 +104,8 @@ bool
 persist_collection_exists(persist_db_t db, const char *name)
 {
 
+	return (db->pdb_driver->pd_get_object(db->pdb_arg, COLLECTIONS,
+	    name, NULL) == 0);
 }
 
 int
