@@ -13,7 +13,8 @@ all: build
 bootstrap: bootstrap_$(OS)
 
 bootstrap_Linux:
-	apt-get -y install cmake libglib2.0-dev libsqlite3-dev python3-dev
+	apt-get -y install \
+	    cmake clang libglib2.0-dev libsqlite3-dev python3-dev
 
 bootstrap_Darwin:
 	port install cmake pkgconfig glib2 sqlite3
