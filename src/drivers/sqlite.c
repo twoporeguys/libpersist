@@ -38,7 +38,7 @@
 #define SQL_CREATE_TABLE	"CREATE TABLE IF NOT EXISTS %s (id TEXT PRIMARY KEY, value TEXT);"
 #define SQL_LIST_TABLES		"SELECT * FROM sqlite_master WHERE TYPE='table';"
 #define SQL_GET			"SELECT * FROM %s WHERE id = ?;"
-#define SQL_INSERT		"INSERT INTO %s (id, value) VALUES (?, ?);"
+#define SQL_INSERT		"INSERT OR REPLACE INTO %s (id, value) VALUES (?, ?);"
 #define SQL_DELETE		"DELETE FROM %s WHERE id = ?;"
 #define SQL_EXTRACT(_x)		"json_extract('$." _x "')"
 
@@ -127,6 +127,7 @@ sqlite_unpack(sqlite3_stmt *stmt, char **idp, rpc_object_t *result)
 	len = (size_t)sqlite3_column_bytes(stmt, 1);
 
 	if (blob == NULL) {
+		persist_set_last_error(EINVAL, "Inconsistent database state");
 		return (-1);
 	}
 
@@ -463,8 +464,10 @@ sqlite_eval_logic_operator(GString *sql, rpc_object_t rule)
 	const char *op;
 	rpc_object_t value;
 
-	if (rpc_object_unpack(rule, "[s,v]", &op, &value) < 2)
+	if (rpc_object_unpack(rule, "[s,v]", &op, &value) < 2) {
+		persist_set_last_error(EINVAL, "Cannot unpack logic tuple");
 		return (false);
+	}
 
 	if (g_strcmp0(op, "and") == 0)
 		return (sqlite_eval_logic_and(sql, value));
@@ -493,8 +496,10 @@ sqlite_eval_field_operator(GString *sql, rpc_object_t rule)
 		return (false);
 
 	if (rpc_serializer_dump("json", value, (void **)&value_str,
-	    &value_len) != 0)
+	    &value_len) != 0) {
+		persist_set_last_error(EFAULT, "Cannot serialize value");
 		return (false);
+	}
 
 	for (op = &sqlite_operator_table[0]; op->so_librpc != NULL; op++) {
 		if (g_strcmp0(rule_op, op->so_librpc) == 0) {
@@ -503,8 +508,10 @@ sqlite_eval_field_operator(GString *sql, rpc_object_t rule)
 		}
 	}
 
-	if (sql_op == NULL)
+	if (sql_op == NULL) {
+		persist_set_last_error(EINVAL, "Invalid operator: %s", rule_op);
 		return (false);
+	}
 
 	g_string_append_printf(sql, SQL_EXTRACT("%s") "%s %.*s", field,
 	    sql_op, (int)value_len, value_str);
@@ -518,12 +525,17 @@ sqlite_eval_rule(GString *sql, rpc_object_t rule)
 		return (false);
 
 	switch (rpc_array_get_count(rule)) {
-		case 2:
-			return (sqlite_eval_logic_operator(sql, rule));
-		case 3:
-			return (sqlite_eval_field_operator(sql, rule));
-		default:
-			return (false);
+	case 2:
+		return (sqlite_eval_logic_operator(sql, rule));
+
+	case 3:
+		return (sqlite_eval_field_operator(sql, rule));
+
+	default:
+		persist_set_last_error(EINVAL,
+		    "Invalid number of items in a rule tuple");
+
+		return (false);
 	}
 }
 
@@ -543,7 +555,8 @@ sqlite_query(void *arg, const char *collection, rpc_object_t rules,
 
 	if (rules != NULL) {
 		if (sqlite_eval_logic_and(sql, rules)) {
-
+			g_string_free(sql, true);
+			return (NULL);
 		}
 	}
 
@@ -594,12 +607,12 @@ retry:
 	ret = sqlite3_step(iter->si_stmt);
 	switch (ret) {
 	case SQLITE_DONE:
+		*id = NULL;
 		*result = NULL;
 		return (0);
 
 	case SQLITE_ROW:
 		return (sqlite_unpack(iter->si_stmt, id, result));
-
 
 	case SQLITE_LOCKED:
 	case SQLITE_BUSY:

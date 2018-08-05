@@ -225,6 +225,11 @@ persist_save(persist_collection_t col, rpc_object_t obj)
 	}
 
 	id = rpc_dictionary_get_string(obj, "id");
+	if (id == NULL) {
+		persist_set_last_error(EINVAL,
+		    "'id' field not present or not a string");
+		return (-1);
+	}
 
 	if (col->pc_db->pdb_driver->pd_save_object(col->pc_db->pdb_arg,
 	    col->pc_name, id, obj) != 0)
@@ -233,18 +238,22 @@ persist_save(persist_collection_t col, rpc_object_t obj)
 	return (0);
 }
 
-rpc_object_t
-persist_iter_next(persist_iter_t iter)
+int
+persist_iter_next(persist_iter_t iter, rpc_object_t *result)
 {
-	rpc_object_t result;
 	char *id;
 
-	if (iter->pi_col->pc_db->pdb_driver->pd_query_next(iter->pi_arg,
-	    &id, &result) != 0)
-		return (NULL);
+	if (result == NULL) {
+		persist_set_last_error(EINVAL, "result must not be NULL");
+		return (-1);
+	}
 
-	rpc_dictionary_set_string(result, "id", id);
-	return (result);
+	if (iter->pi_col->pc_db->pdb_driver->pd_query_next(iter->pi_arg,
+	    &id, result) != 0)
+		return (-1);
+
+	rpc_dictionary_set_string(*result, "id", id);
+	return (0);
 }
 
 void
