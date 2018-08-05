@@ -6,15 +6,23 @@ BUILD_PYTHON ?= ON
 BUILD_TYPE ?= Release
 OS := $(shell uname -s)
 
-.PHONY: bootstrap bootstrap_$(OS) all clean build install uninstall
+.PHONY: bootstrap bootstrap_librpc bootstrap_$(OS) all clean build install
+.PHONY: uninstall
 
 all: build
 
-bootstrap: bootstrap_$(OS)
+bootstrap: bootstrap_librpc bootstrap_$(OS)
+
+bootstrap_librpc:
+	mkdir -p build
+	git -C build clone https://github.com/twporeguys/librpc.git
+	make -C build/librpc BUILD_TYPE=Debug
+	make -C build/librpc install
 
 bootstrap_Linux:
 	apt-get -y install \
-	    cmake clang libglib2.0-dev libsqlite3-dev python3-dev
+	    cmake clang libglib2.0-dev libsqlite3-dev python3-dev \
+	    libblocksruntime-dev
 
 bootstrap_Darwin:
 	port install cmake pkgconfig glib2 sqlite3
