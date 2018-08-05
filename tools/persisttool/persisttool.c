@@ -183,7 +183,12 @@ cmd_query(int argc, char *argv[])
 
 	iter = persist_query(col, NULL, NULL);
 	for (;;) {
-		obj = persist_iter_next(iter);
+		if (persist_iter_next(iter, &obj)) {
+			persist_get_last_error(&errmsg);
+			fprintf(stderr, "cannot read iterator: %s\n", errmsg);
+			return (-1);
+		}
+
 		if (obj == NULL)
 			break;
 
