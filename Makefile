@@ -4,10 +4,20 @@ PYTHON_VERSION := python3
 PREFIX ?= /usr/local
 BUILD_PYTHON ?= ON
 BUILD_TYPE ?= Release
+OS := $(shell uname -s)
 
-.PHONY: all clean build  install uninstall
+.PHONY: bootstrap bootstrap_$(OS) all clean build install uninstall
 
 all: build
+
+bootstrap: bootstrap_$(OS)
+
+bootstrap_Linux:
+	apt-get -y install cmake libglib2.0-dev libsqlite3-dev python3-dev
+
+bootstrap_Darwin:
+	port install cmake pkgconfig glib2 sqlite3
+	port select --set python3 python36
 
 build:
 	mkdir -p build
