@@ -198,7 +198,8 @@ int persist_delete(_Nonnull persist_collection_t col, const char *_Nonnull id);
  * @param iter
  * @return
  */
-_Nullable rpc_object_t persist_iter_next(_Nonnull persist_iter_t iter);
+int persist_iter_next(_Nonnull persist_iter_t iter,
+    _Nullable rpc_object_t *_Nonnull result);
 
 /**
  *
