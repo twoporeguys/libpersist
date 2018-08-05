@@ -26,7 +26,14 @@
 
 from librpc import ObjectType
 from librpc cimport Object
+from libc.string cimport memset
 cimport persist
+
+
+class PersistException(RuntimeError):
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.code = code
 
 
 cdef class Database(object):
@@ -43,9 +50,8 @@ cdef class Database(object):
             raise TypeError('Params needs to be a librpc Object or None')
 
         self.db = persist_open(path.encode('utf-8'), driver.encode('utf-8'), rpc_params.unwrap())
-
         if self.db == <persist_db_t>NULL:
-            raise ValueError('Cannot open database {}'.format(path))
+            check_last_error()
 
     def __dealloc__(self):
         if self.db != <persist_db_t>NULL:
@@ -168,12 +174,17 @@ cdef class Collection(object):
 
     def set(self, value):
         cdef Object rpc_value
+        cdef int ret
 
         rpc_value = Object(value)
         if rpc_value.type != ObjectType.DICTIONARY:
             raise TypeError('Value has to be a dictionary')
 
-        persist_save(self.collection, rpc_value.unwrap())
+        with nogil:
+            ret = persist_save(self.collection, rpc_value.unwrap())
+
+        if ret != 0:
+            check_last_error()
 
     def delete(self, id):
         if not isinstance(id, str):
@@ -181,11 +192,30 @@ cdef class Collection(object):
 
         persist_delete(self.collection, id.encode('utf-8'))
 
-    def query(self, params):
+    def query(self, rules, sort=None, descending=False, offset=None, limit=None, count=False):
         cdef persist_iter_t iter
-        cdef Object rpc_params = Object(params)
+        cdef persist_query_params params
+        cdef Object rpc_rules = Object(rules)
 
-        iter = persist_query(self.collection, rpc_params.unwrap(), NULL)
+        memset(&params, 0, sizeof(params))
+
+        if sort is not None:
+            b_sort = sort.encode('utf-8')
+            params.sort_field = b_sort
+
+        if descending:
+            params.descending = True
+
+        if offset is not None:
+            params.offset = offset
+
+        if limit is not None:
+            params.limit = limit
+
+        if count:
+            params.count = True
+
+        iter = persist_query(self.collection, rpc_rules.unwrap(), &params)
         return CollectionIterator.wrap(iter)
 
 
@@ -203,7 +233,9 @@ cdef class CollectionIterator(object):
         if not self.cnt:
             raise StopIteration
 
-        result = persist_iter_next(self.iter)
+        if persist_iter_next(self.iter, &result) != 0:
+            check_last_error()
+
         if result == <rpc_object_t>NULL:
             self.cnt = False
             raise StopIteration
@@ -222,3 +254,11 @@ cdef class CollectionIterator(object):
         ret.cnt = True
 
         return ret
+
+
+cdef check_last_error():
+    cdef const char *errmsg
+    cdef int errcode
+
+    errcode = persist_get_last_error(&errmsg)
+    raise PersistException(errcode, errmsg)

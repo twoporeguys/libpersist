@@ -37,7 +37,7 @@ cdef extern from "rpc/object.h":
     ctypedef rpc_object *rpc_object_t
 
 
-cdef extern from "persist.h":
+cdef extern from "persist.h" nogil:
     cdef struct persist_db:
         pass
 
@@ -79,7 +79,7 @@ cdef extern from "persist.h":
     int persist_get_last_error(char **msgp)
     void persist_collection_close(persist_collection_t collection)
     void persist_iter_close(persist_iter_t iter)
-    rpc_object_t persist_iter_next(persist_iter_t iter)
+    int persist_iter_next(persist_iter_t iter, rpc_object_t *result)
 
 
 cdef class Database(object):

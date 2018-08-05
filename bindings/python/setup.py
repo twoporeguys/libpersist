@@ -36,7 +36,7 @@ from Cython.Distutils import build_ext
 os.environ['CC'] = 'clang'
 os.environ.setdefault('DESTDIR', '/')
 cflags = ['-fblocks', '-Wno-sometimes-uninitialized']
-ldflags = ['-g', '-lpersist', '-lrpc']
+ldflags = ['-lpersist', '-lrpc']
 
 
 if 'CMAKE_SOURCE_DIR' in os.environ:
