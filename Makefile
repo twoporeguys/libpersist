@@ -11,17 +11,17 @@ OS := $(shell uname -s)
 
 all: build
 
-bootstrap: bootstrap_librpc bootstrap_$(OS)
+bootstrap: bootstrap_$(OS) bootstrap_librpc
 
 bootstrap_librpc:
 	mkdir -p build
 	git -C build clone https://github.com/twporeguys/librpc.git
-	make -C build/librpc BUILD_TYPE=Debug
+	make -C build/librpc bootstrap build BUILD_TYPE=Debug
 	make -C build/librpc install
 
 bootstrap_Linux:
 	apt-get -y install \
-	    cmake clang libglib2.0-dev libsqlite3-dev python3-dev \
+	    cmake clang git libglib2.0-dev libsqlite3-dev python3-dev \
 	    libblocksruntime-dev
 
 bootstrap_Darwin:
