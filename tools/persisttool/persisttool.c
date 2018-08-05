@@ -163,6 +163,7 @@ cmd_list(int argc, char *argv[])
 static int
 cmd_query(int argc, char *argv[])
 {
+	GOptionContext *context;
 	persist_collection_t col;
 	persist_iter_t iter;
 	rpc_object_t obj;
@@ -180,7 +181,7 @@ cmd_query(int argc, char *argv[])
 		return (-1);
 	}
 
-	iter = persist_query(col, NULL);
+	iter = persist_query(col, NULL, NULL);
 	for (;;) {
 		obj = persist_iter_next(iter);
 		if (obj == NULL)
@@ -257,6 +258,10 @@ cmd_insert(int argc, char *argv[])
 	}
 
 	col = persist_collection_get(db, argv[0], false);
+	if (col == NULL) {
+
+	}
+
 	obj = ingest_object();
 
 	if (obj == NULL)
@@ -273,7 +278,21 @@ cmd_insert(int argc, char *argv[])
 static int
 cmd_delete(int argc, char *argv[])
 {
+	persist_collection_t col;
 
+	if (argc < 2) {
+		usage();
+		return (1);
+	}
+
+	col = persist_collection_get(db, argv[0], false);
+	if (col == NULL) {
+
+	}
+
+	if (persist_delete(col, argv[1]) != 0) {
+
+	}
 }
 
 static void

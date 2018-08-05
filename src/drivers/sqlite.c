@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <glib.h>
 #include <sqlite3.h>
 #include <rpc/object.h>
@@ -37,9 +38,9 @@
 #define SQL_CREATE_TABLE	"CREATE TABLE IF NOT EXISTS %s (id TEXT PRIMARY KEY, value TEXT);"
 #define SQL_LIST_TABLES		"SELECT * FROM sqlite_master WHERE TYPE='table';"
 #define SQL_GET			"SELECT * FROM %s WHERE id = ?;"
-#define	SQL_QUERY		"SELECT * FROM %s;"
 #define SQL_INSERT		"INSERT INTO %s (id, value) VALUES (?, ?);"
 #define SQL_DELETE		"DELETE FROM %s WHERE id = ?;"
+#define SQL_EXTRACT(_x)		"json_extract('$." _x "')"
 
 struct sqlite_context
 {
@@ -52,6 +53,18 @@ struct sqlite_iter
 	sqlite3_stmt *		si_stmt;
 };
 
+struct sqlite_operator
+{
+	const char *		so_librpc;
+	const char *		so_sqlite;
+};
+
+static bool sqlite_eval_logic_and(GString *, rpc_object_t);
+static bool sqlite_eval_logic_or(GString *, rpc_object_t);
+static bool sqlite_eval_logic_nor(GString *, rpc_object_t);
+static bool sqlite_eval_logic_operator(GString *, rpc_object_t);
+static bool sqlite_eval_field_operator(GString *, rpc_object_t);
+static bool sqlite_eval_rule(GString *, rpc_object_t);
 static int sqlite_trace_callback(unsigned int, void *, void *, void *);
 static int sqlite_unpack(sqlite3_stmt *, char **, rpc_object_t *);
 static int sqlite_open(struct persist_db *);
@@ -61,9 +74,21 @@ static int sqlite_get_collections(void *, GPtrArray *);
 static int sqlite_get_object(void *, const char *, const char *, rpc_object_t *);
 static int sqlite_save_object(void *, const char *, const char *, rpc_object_t);
 static int sqlite_delete_object(void *, const char *, const char *);
-static void *sqlite_query(void *, const char *, rpc_object_t);
+static void *sqlite_query(void *, const char *, rpc_object_t, persist_query_params_t);
 static int sqlite_query_next(void *, char **id, rpc_object_t *);
 static void sqlite_query_close(void *);
+
+static const struct sqlite_operator sqlite_operator_table[] = {
+	{ "=", "=" },
+	{ "!=", "!=" },
+	{ ">", ">" },
+	{ ">=", ">=" },
+	{ "<" , "<" },
+	{ "<=", "<=" },
+	{ "~", "REGEXP" },
+	{ "match", "GLOB" },
+	{ }
+};
 
 static int
 sqlite_trace_callback(unsigned int code, void *ctx, void *p, void *x)
@@ -354,19 +379,204 @@ sqlite_delete_object(void *arg, const char *collection, const char *id)
 	return (ret);
 }
 
+static bool
+sqlite_eval_logic_and(GString *sql, rpc_object_t lst)
+{
+	size_t len;
+	bool stop;
+
+	if (rpc_get_type(lst) != RPC_TYPE_ARRAY)
+		return (false);
+
+	len = rpc_array_get_count(lst);
+	g_string_append(sql, "(");
+
+	stop = rpc_array_apply(lst, ^(size_t idx, rpc_object_t v) {
+		if (!sqlite_eval_rule(sql, v))
+			return ((bool)false);
+
+		if (idx == len - 1)
+			g_string_append(sql, "AND ");
+
+		return ((bool)true);
+	});
+
+	g_string_append(sql, ")");
+	return (!stop);
+}
+
+static bool
+sqlite_eval_logic_or(GString *sql, rpc_object_t lst)
+{
+	size_t len;
+	bool stop;
+
+	if (rpc_get_type(lst) != RPC_TYPE_ARRAY)
+		return (false);
+
+	len = rpc_array_get_count(lst);
+	g_string_append(sql, "(");
+
+	stop = rpc_array_apply(lst, ^(size_t idx, rpc_object_t v) {
+		if (!sqlite_eval_rule(sql, v))
+			return ((bool)false);
+
+		if (idx == len - 1)
+			g_string_append(sql, "OR ");
+
+		return ((bool)true);
+	});
+
+	g_string_append(sql, ")");
+	return (!stop);
+}
+
+static bool
+sqlite_eval_logic_nor(GString *sql, rpc_object_t lst)
+{
+	size_t len;
+	bool stop;
+
+	if (rpc_get_type(lst) != RPC_TYPE_ARRAY)
+		return (false);
+
+	len = rpc_array_get_count(lst);
+	g_string_append(sql, "(");
+
+	stop = rpc_array_apply(lst, ^(size_t idx, rpc_object_t v) {
+		if (!sqlite_eval_rule(sql, v))
+			return ((bool)false);
+
+		if (idx == len - 1)
+			g_string_append(sql, "AND ");
+
+		return ((bool)true);
+	});
+
+	g_string_append(sql, ")");
+	return (!stop);
+}
+
+static bool
+sqlite_eval_logic_operator(GString *sql, rpc_object_t rule)
+{
+	const char *op;
+	rpc_object_t value;
+
+	if (rpc_object_unpack(rule, "[s,v]", &op, &value) < 2)
+		return (false);
+
+	if (g_strcmp0(op, "and") == 0)
+		return (sqlite_eval_logic_and(sql, value));
+
+	if (g_strcmp0(op, "or") == 0)
+		return (sqlite_eval_logic_or(sql, value));
+
+	if (g_strcmp0(op, "nor") == 0)
+		return (sqlite_eval_logic_nor(sql, value));
+
+	return (false);
+}
+
+static bool
+sqlite_eval_field_operator(GString *sql, rpc_object_t rule)
+{
+	const struct sqlite_operator *op;
+	const char *sql_op = NULL;
+	const char *rule_op;
+	const char *field;
+	char *value_str;
+	size_t value_len;
+	rpc_object_t value;
+
+	if (rpc_object_unpack(rule, "[s,s,v]", &field, &rule_op, &value) < 3)
+		return (false);
+
+	if (rpc_serializer_dump("json", value, (void **)&value_str,
+	    &value_len) != 0)
+		return (false);
+
+	for (op = &sqlite_operator_table[0]; op->so_librpc != NULL; op++) {
+		if (g_strcmp0(rule_op, op->so_librpc) == 0) {
+			sql_op = op->so_sqlite;
+			break;
+		}
+	}
+
+	if (sql_op == NULL)
+		return (false);
+
+	g_string_append_printf(sql, SQL_EXTRACT("%s") "%s %.*s", field,
+	    sql_op, (int)value_len, value_str);
+	return (true);
+}
+
+static bool
+sqlite_eval_rule(GString *sql, rpc_object_t rule)
+{
+	if (rpc_get_type(rule) != RPC_TYPE_ARRAY)
+		return (false);
+
+	switch (rpc_array_get_count(rule)) {
+		case 2:
+			return (sqlite_eval_logic_operator(sql, rule));
+		case 3:
+			return (sqlite_eval_field_operator(sql, rule));
+		default:
+			return (false);
+	}
+}
+
 static void *
-sqlite_query(void *arg, const char *collection, rpc_object_t query)
+sqlite_query(void *arg, const char *collection, rpc_object_t rules,
+    persist_query_params_t params)
 {
 	struct sqlite_context *sqlite = arg;
 	struct sqlite_iter *iter;
-	g_autofree char *sql;
+	GString *sql;
 	sqlite3_stmt *stmt;
 
-	sql = g_strdup_printf(SQL_QUERY, collection);
-	if (sqlite3_prepare_v2(sqlite->sc_db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+	sql = g_string_new("SELECT ");
+	g_string_append_printf(sql, "%s FROM %s ",
+	    params != NULL && params->count ? "count(value)" : "value",
+	    collection);
+
+	if (rules != NULL) {
+		if (sqlite_eval_logic_and(sql, rules)) {
+
+		}
+	}
+
+	if (params != NULL) {
+		if (params->sort_field != NULL) {
+			g_string_append_printf(sql,
+			    "ORDER BY " SQL_EXTRACT("%s") " %s ",
+			    params->sort_field,
+			    params->descending ? "DESC" : "ASC");
+		}
+
+		if (params->limit) {
+			g_string_append_printf(sql, "LIMIT %" PRIu64 " ",
+			    params->limit);
+		}
+
+		if (params->offset) {
+			g_string_append_printf(sql, "OFFSET %" PRIu64 " ",
+			    params->offset);
+		}
+
+		if (params->single)
+			g_string_append(sql, "LIMIT 1 ");
+	}
+
+	g_string_append(sql, ";");
+
+	if (sqlite3_prepare_v2(sqlite->sc_db, sql->str, -1, &stmt, NULL) != SQLITE_OK) {
 		persist_set_last_error(errno, "%s", sqlite3_errmsg(sqlite->sc_db));
 		return (NULL);
 	}
+
+	g_string_free(sql, true);
 
 	iter = g_malloc0(sizeof(*iter));
 	iter->si_sc = sqlite;

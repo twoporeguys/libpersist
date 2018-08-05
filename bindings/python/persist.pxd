@@ -38,18 +38,27 @@ cdef extern from "rpc/object.h":
 
 
 cdef extern from "persist.h":
-    ctypedef struct persist_db:
+    cdef struct persist_db:
         pass
 
-    ctypedef struct persist_collection:
+    cdef struct persist_collection:
         pass
 
-    ctypedef struct persist_iter:
+    cdef struct persist_iter:
         pass
+
+    cdef struct persist_query_params:
+        bint single
+        bint count
+        bint descending
+        const char *sort_field
+        uint64_t offset
+        uint64_t limit
 
     ctypedef persist_db *persist_db_t
-    ctypedef persist_collection * persist_collection_t
+    ctypedef persist_collection *persist_collection_t
     ctypedef persist_iter *persist_iter_t
+    ctypedef persist_query_params *persist_query_params_t
 
     void *PERSIST_COLLECTION_ITER(persist_collection_iter_f fn, void *arg)
 
@@ -64,7 +73,7 @@ cdef extern from "persist.h":
         rpc_object_t metadata)
     void persist_collections_apply(persist_db_t db, void *applier)
     rpc_object_t persist_get(persist_collection_t col, const char *id)
-    persist_iter_t persist_query(persist_collection_t col, rpc_object_t query)
+    persist_iter_t persist_query(persist_collection_t col, rpc_object_t rules, persist_query_params_t params)
     int persist_save(persist_collection_t col, rpc_object_t obj)
     int persist_delete(persist_collection_t col, const char *id)
     int persist_get_last_error(char **msgp)

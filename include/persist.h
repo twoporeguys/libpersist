@@ -28,10 +28,12 @@
 #define LIBPERSIST_PERSIST_H
 
 #include <rpc/object.h>
+#include <rpc/rpc.h>
 
 struct persist_db;
 struct persist_collection;
 struct persist_iter;
+struct persist_query_params;
 
 /**
  * An open database handle.
@@ -43,8 +45,19 @@ typedef struct persist_db *persist_db_t;
  */
 typedef struct persist_collection *persist_collection_t;
 
+/**
+ *
+ */
 typedef struct persist_iter *persist_iter_t;
 
+/**
+ *
+ */
+typedef struct persist_query_params *persist_query_params_t;
+
+/**
+ *
+ */
 typedef bool (^persist_collection_iter_t)(const char *_Nonnull name);
 
 /**
@@ -55,6 +68,16 @@ typedef bool (^persist_collection_iter_t)(const char *_Nonnull name);
                 return ((bool)_fn(_arg, _name));	\
         }
 
+struct persist_query_params
+{
+	bool				single;
+	bool				count;
+	bool				descending;
+	const char *_Nullable		sort_field;
+	uint64_t			offset;
+	uint64_t			limit;
+	_Nullable rpc_query_cb_t	callback;
+};
 
 /**
  * Opens a database in a file @p path.
@@ -152,7 +175,7 @@ _Nullable rpc_object_t persist_get(_Nonnull persist_collection_t col,
  * @return
  */
 _Nullable persist_iter_t persist_query(_Nonnull persist_collection_t col,
-    _Nullable rpc_object_t query);
+    _Nullable rpc_object_t filter, _Nullable persist_query_params_t params);
 
 /**
  *

@@ -29,6 +29,7 @@
 
 #include <rpc/object.h>
 #include <glib.h>
+#include <persist.h>
 #include "linker_set.h"
 
 #define DECLARE_DRIVER(_driver)		DATA_SET(drv_set, _driver)
@@ -47,7 +48,7 @@ struct persist_driver
 	int (*pd_get_object)(void *, const char *, const char *, rpc_object_t *);
 	int (*pd_save_object)(void *, const char *, const char *, rpc_object_t);
 	int (*pd_delete_object)(void *, const char *, const char *);
-	void *(*pd_query)(void *, const char *, rpc_object_t);
+	void *(*pd_query)(void *, const char *, rpc_object_t, persist_query_params_t);
 	int (*pd_query_next)(void *, char **, rpc_object_t *);
 	void (*pd_query_close)(void *);
 };

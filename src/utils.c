@@ -62,7 +62,7 @@ persist_error_free(void *error)
 }
 
 int
-persist_get_last_error(char **msgp)
+persist_get_last_error(const char **msgp)
 {
 	struct error *err;
 

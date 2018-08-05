@@ -162,7 +162,7 @@ persist_collections_apply(persist_db_t db, persist_collection_iter_t fn)
 	void *iter;
 	char *id;
 
-	iter = db->pdb_driver->pd_query(db->pdb_arg, COLLECTIONS, NULL);
+	iter = db->pdb_driver->pd_query(db->pdb_arg, COLLECTIONS, NULL, NULL);
 
 	for (;;) {
 		if (db->pdb_driver->pd_query_next(iter, &id, NULL) != 0)
@@ -196,14 +196,15 @@ persist_get(persist_collection_t col, const char *id)
 }
 
 persist_iter_t
-persist_query(persist_collection_t col, rpc_object_t query)
+persist_query(persist_collection_t col, rpc_object_t rules,
+    persist_query_params_t params)
 {
 	struct persist_iter *iter;
 
 	iter = g_malloc0(sizeof(*iter));
 	iter->pi_col = col;
 	iter->pi_arg = col->pc_db->pdb_driver->pd_query(
-	    col->pc_db->pdb_arg, col->pc_name, query);
+	    col->pc_db->pdb_arg, col->pc_name, rules, params);
 
 	if (iter->pi_arg == NULL) {
 		g_free(iter);

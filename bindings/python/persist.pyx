@@ -185,7 +185,7 @@ cdef class Collection(object):
         cdef persist_iter_t iter
         cdef Object rpc_params = Object(params)
 
-        iter = persist_query(self.collection, rpc_params.unwrap())
+        iter = persist_query(self.collection, rpc_params.unwrap(), NULL)
         return CollectionIterator.wrap(iter)
 
 
