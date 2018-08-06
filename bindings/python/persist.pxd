@@ -25,6 +25,7 @@
 #
 
 from libc.stdint cimport *
+from librpc cimport Object
 
 
 ctypedef bint (*persist_collection_iter_f)(void *arg, const char *name)
@@ -84,6 +85,9 @@ cdef extern from "persist.h" nogil:
 
 cdef class Database(object):
     cdef persist_db_t db
+    cdef object path
+    cdef object driver
+    cdef Object params
 
     @staticmethod
     cdef bint c_apply_callback(void *arg, const char *name)
@@ -91,9 +95,10 @@ cdef class Database(object):
 
 cdef class Collection(object):
     cdef persist_collection_t collection
+    cdef object parent
 
     @staticmethod
-    cdef Collection wrap(persist_collection_t ptr)
+    cdef Collection wrap(object parent, persist_collection_t ptr)
     cdef persist_collection_t unwrap(self) nogil
 
 

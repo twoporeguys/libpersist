@@ -24,11 +24,12 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
+import logging
 from librpc import ObjectType
-from librpc cimport Object
 from libc.string cimport memset
 cimport persist
 
+logger = logging.getLogger(__name__)
 
 class PersistException(RuntimeError):
     def __init__(self, code, message):
@@ -46,18 +47,44 @@ cdef class Database(object):
         if not isinstance(driver, str):
             raise TypeError('Driver needs to be a string')
 
-        if params and not isinstance(params, Object):
-            raise TypeError('Params needs to be a librpc Object or None')
-
-        self.db = persist_open(path.encode('utf-8'), driver.encode('utf-8'), rpc_params.unwrap())
-        if self.db == <persist_db_t>NULL:
-            check_last_error()
+        self.path = path
+        self.driver = driver
+        self.params = rpc_params
 
     def __dealloc__(self):
         if self.db != <persist_db_t>NULL:
+            logger.warning('Leaking memory')
+
+    def open(self):
+        self.db = persist_open(
+            self.path.encode('utf-8'),
+            self.driver.encode('utf-8'),
+            self.params.unwrap()
+        )
+        if self.db == <persist_db_t>NULL:
+            check_last_error()
+
+    def close(self):
+        if self.db != <persist_db_t>NULL:
             persist_close(self.db)
 
+        self.db = <persist_db_t>NULL
+
+    def __enter__(self):
+        self.open()
+        return self
+
+    def __exit__(self, *args):
+        self.close()
+
+    property is_open:
+        def __get__(self):
+            return self.db != <persist_db_t>NULL
+
     def collection_exists(self, name):
+        if self.db == <persist_db_t>NULL:
+            raise ValueError('Database is closed')
+
         if not isinstance(name, str):
             raise TypeError('Collection name needs to be a string')
 
@@ -65,6 +92,9 @@ cdef class Database(object):
 
     def get_collection(self, name, create=False):
         cdef persist_collection_t collection
+
+        if self.db == <persist_db_t>NULL:
+            raise ValueError('Database is closed')
 
         if not isinstance(name, str):
             raise TypeError('Collection name needs to be a string')
@@ -74,9 +104,12 @@ cdef class Database(object):
 
         collection = persist_collection_get(self.db, name.encode('utf-8'), create)
 
-        return Collection.wrap(collection)
+        return Collection.wrap(self, collection)
 
     def create_collection(self, name):
+        if self.db == <persist_db_t>NULL:
+            raise ValueError('Database is closed')
+
         if not isinstance(name, str):
             raise TypeError('Collection name needs to be a string')
 
@@ -86,6 +119,9 @@ cdef class Database(object):
         return self.get_collection(name, True)
 
     def remove_collection(self, name):
+        if self.db == <persist_db_t>NULL:
+            raise ValueError('Database is closed')
+
         if not isinstance(name, str):
             raise TypeError('Collection name needs to be a string')
 
@@ -96,6 +132,9 @@ cdef class Database(object):
 
     def get_collection_metadata(self, name):
         cdef rpc_object_t metadata
+
+        if self.db == <persist_db_t>NULL:
+            raise ValueError('Database is closed')
 
         if not isinstance(name, str):
             raise TypeError('Collection name needs to be a string')
@@ -110,6 +149,9 @@ cdef class Database(object):
     def set_collection_metadata(self, name, metadata):
         cdef Object rpc_metadata = Object(metadata)
 
+        if self.db == <persist_db_t>NULL:
+            raise ValueError('Database is closed')
+
         if not isinstance(name, str):
             raise TypeError('Collection name needs to be a string')
 
@@ -119,6 +161,9 @@ cdef class Database(object):
         persist_collection_set_metadata(self.db, name.encode('utf-8'), rpc_metadata.unwrap())
 
     def list_collections(self):
+        if self.db == <persist_db_t>NULL:
+            raise ValueError('Database is closed')
+
         names = []
         def collect(name):
             names.append(name.decode('utf-8'))
@@ -145,7 +190,7 @@ cdef class Collection(object):
             persist_collection_close(self.collection)
 
     @staticmethod
-    cdef Collection wrap(persist_collection_t ptr):
+    cdef Collection wrap(object parent, persist_collection_t ptr):
         cdef Collection ret
 
         if ptr == <persist_collection_t>NULL:
@@ -153,6 +198,7 @@ cdef class Collection(object):
 
         ret = Collection.__new__(Collection)
         ret.collection = ptr
+        ret.parent = parent
 
         return ret
 
@@ -161,6 +207,9 @@ cdef class Collection(object):
 
     def get(self, id, default=None):
         cdef rpc_object_t ret
+
+        if not self.parent.is_open:
+            raise ValueError('Database is closed')
 
         if not isinstance(id, str):
             raise TypeError('Id needs to be a string')
@@ -176,6 +225,9 @@ cdef class Collection(object):
         cdef Object rpc_value
         cdef int ret
 
+        if not self.parent.is_open:
+            raise ValueError('Database is closed')
+
         rpc_value = Object(value)
         if rpc_value.type != ObjectType.DICTIONARY:
             raise TypeError('Value has to be a dictionary')
@@ -187,6 +239,9 @@ cdef class Collection(object):
             check_last_error()
 
     def delete(self, id):
+        if not self.parent.is_open:
+            raise ValueError('Database is closed')
+
         if not isinstance(id, str):
             raise TypeError('Id needs to be a string')
 
@@ -196,6 +251,9 @@ cdef class Collection(object):
         cdef persist_iter_t iter
         cdef persist_query_params params
         cdef Object rpc_rules = Object(rules)
+
+        if not self.parent.is_open:
+            raise ValueError('Database is closed')
 
         memset(&params, 0, sizeof(params))
 
