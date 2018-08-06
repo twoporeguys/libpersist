@@ -15,7 +15,7 @@ bootstrap: bootstrap_$(OS) bootstrap_librpc
 
 bootstrap_librpc:
 	mkdir -p build
-	git -C build clone https://github.com/twporeguys/librpc.git
+	git -C build clone https://github.com/twoporeguys/librpc.git
 	make -C build/librpc bootstrap build BUILD_TYPE=Debug
 	make -C build/librpc install
 
