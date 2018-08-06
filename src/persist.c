@@ -76,7 +76,7 @@ void
 persist_close(persist_db_t db)
 {
 
-	db->pdb_driver->pd_close(db->pdb_arg);
+	db->pdb_driver->pd_close(db);
 }
 
 persist_collection_t
