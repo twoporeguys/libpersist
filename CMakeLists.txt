@@ -87,6 +87,10 @@ target_link_libraries(libpersist ${GLIB_LIBRARIES})
 target_link_libraries(libpersist ${LIBRPC_LIBRARIES})
 target_link_libraries(libpersist ${SQLITE3_LIBRARIES})
 
+if(NOT APPLE)
+	target_link_libraries(libpersist BlocksRuntime)
+endif()
+
 configure_file(libpersist.pc.in ${CMAKE_CURRENT_BINARY_DIR}/libpersist.pc @ONLY)
 install(TARGETS libpersist DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
