@@ -252,6 +252,9 @@ persist_iter_next(persist_iter_t iter, rpc_object_t *result)
 	    &id, result) != 0)
 		return (-1);
 
+	if (id == NULL || *result == NULL)
+		return (0);
+
 	rpc_dictionary_set_string(*result, "id", id);
 	return (0);
 }
