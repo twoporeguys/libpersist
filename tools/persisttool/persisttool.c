@@ -163,7 +163,6 @@ cmd_list(int argc, char *argv[])
 static int
 cmd_query(int argc, char *argv[])
 {
-	GOptionContext *context;
 	persist_collection_t col;
 	persist_iter_t iter;
 	rpc_object_t obj;
