@@ -550,7 +550,7 @@ sqlite_query(void *arg, const char *collection, rpc_object_t rules,
 
 	sql = g_string_new("SELECT ");
 	g_string_append_printf(sql, "%s FROM %s ",
-	    params != NULL && params->count ? "count(value)" : "value",
+	    params != NULL && params->count ? "count(value)" : "id, value",
 	    collection);
 
 	if (rules != NULL) {
@@ -607,8 +607,12 @@ retry:
 	ret = sqlite3_step(iter->si_stmt);
 	switch (ret) {
 	case SQLITE_DONE:
-		*id = NULL;
-		*result = NULL;
+		if (id != NULL)
+			*id = NULL;
+
+		if (result != NULL)
+			*result = NULL;
+
 		return (0);
 
 	case SQLITE_ROW:
