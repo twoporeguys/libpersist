@@ -9,13 +9,12 @@ set(DEPS
 add_custom_command(
         OUTPUT ${OUTPUT}
         COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/bindings/python
-        ${CMAKE_CURRENT_BINARY_DIR}
+            ${CMAKE_SOURCE_DIR}/bindings/python
+            ${CMAKE_CURRENT_BINARY_DIR}
         COMMAND ${CMAKE_COMMAND} -E env
-        CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR}
-        CMAKE_PREFIX=${CMAKE_INSTALL_PREFIX}
-        SYSTEMD_SUPPORT=${ENABLE_SYSTEMD}
-        ${PYTHON} ${SETUP_PY} build
+            CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR}
+            CMAKE_PREFIX=${CMAKE_INSTALL_PREFIX}
+            ${PYTHON} ${SETUP_PY} build
         COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT}
         DEPENDS ${DEPS}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
