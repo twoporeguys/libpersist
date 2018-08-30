@@ -32,6 +32,15 @@
 #include <persist.h>
 
 #define BUFLEN	1024
+#define USAGE_STRING							\
+    "Available commands:\n"						\
+    "  list\n"								\
+    "  query COLLECTION\n"						\
+    "  get-metadata COLLECTION\n"					\
+    "  set-metadata COLLECTION\n"					\
+    "  get COLLECTION ID\n"						\
+    "  insert COLLECTION ID\n"						\
+    "  delete COLLECTION ID\n"
 
 static int open_db(const char *, const char *);
 static int print_object(rpc_object_t);
@@ -43,7 +52,7 @@ static int cmd_set_metadata(int, char *[]);
 static int cmd_get(int, char *[]);
 static int cmd_insert(int, char *[]);
 static int cmd_delete(int, char *[]);
-static void usage(void);
+static void usage(GOptionContext *);
 
 static const char *file;
 static const char *format = "native";
@@ -67,9 +76,9 @@ static struct {
 };
 
 static const GOptionEntry options[] = {
-	{ "file", 'f', 0, G_OPTION_ARG_STRING, &file, "Database path", NULL },
-	{ "format", 't', 0, G_OPTION_ARG_STRING, &format, "Input/output format", NULL },
-	{ "driver", 'd', 0, G_OPTION_ARG_STRING, &driver, "Driver", NULL },
+	{ "file", 'f', 0, G_OPTION_ARG_STRING, &file, "Database path", "FILE" },
+	{ "format", 't', 0, G_OPTION_ARG_STRING, &format, "Input/output format", "FORMAT" },
+	{ "driver", 'd', 0, G_OPTION_ARG_STRING, &driver, "Driver", "DRIVER" },
 	{ G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_STRING_ARRAY, &args, "", NULL },
 	{ }
 };
@@ -163,24 +172,61 @@ cmd_list(int argc, char *argv[])
 static int
 cmd_query(int argc, char *argv[])
 {
+	GError *err = NULL;
+	GOptionContext *context;
 	persist_collection_t col;
 	persist_iter_t iter;
 	rpc_object_t obj;
+	struct persist_query_params params = { 0 };
+	const char *colname;
 	const char *errmsg;
+	const GOptionEntry options[] = {
+		{
+			.long_name = "limit",
+			.arg = G_OPTION_ARG_INT64,
+			.arg_data = &params.limit,
+			.description = "Maximum number of results to return",
+			.arg_description = "NUM"
+		},
+		{
+			.long_name = "offset",
+			.arg = G_OPTION_ARG_INT64,
+			.arg_data = &params.offset,
+			.description = "Number of entries to skip",
+			.arg_description = "NUM"
+		},
+		{
+			.long_name = "sort",
+			.arg = G_OPTION_ARG_STRING,
+			.arg_data = &params.sort_field,
+			.description = "Field name to sort on",
+			.arg_description = "NAME"
+		},
+		{ }
+	};
 
 	if (argc < 1) {
-		usage();
+		usage(NULL);
 		return (1);
 	}
 
-	col = persist_collection_get(db, argv[0], false);
+	colname = argv[0];
+	context = g_option_context_new("query COLLECTION [OPTION...]");
+	g_option_context_add_main_entries(context, options, NULL);
+
+	if (!g_option_context_parse(context, &argc, &argv, &err)) {
+		usage(context);
+		return (1);
+	}
+
+	col = persist_collection_get(db, colname, false);
 	if (col == NULL) {
 		persist_get_last_error(&errmsg);
 		fprintf(stderr, "cannot open collection: %s\n", errmsg);
 		return (-1);
 	}
 
-	iter = persist_query(col, NULL, NULL);
+	iter = persist_query(col, NULL, &params);
 	for (;;) {
 		if (persist_iter_next(iter, &obj)) {
 			persist_get_last_error(&errmsg);
@@ -204,7 +250,7 @@ cmd_get_metadata(int argc, char *argv[])
 	const char *errmsg;
 
 	if (argc < 1) {
-		usage();
+		usage(NULL);
 		return (1);
 	}
 
@@ -233,7 +279,7 @@ cmd_get(int argc, char *argv[])
 	const char *errmsg;
 
 	if (argc < 2) {
-		usage();
+		usage(NULL);
 		return (1);
 	}
 
@@ -257,7 +303,7 @@ cmd_insert(int argc, char *argv[])
 	const char *errmsg;
 
 	if (argc < 2) {
-		usage();
+		usage(NULL);
 		return (1);
 	}
 
@@ -285,7 +331,7 @@ cmd_delete(int argc, char *argv[])
 	persist_collection_t col;
 
 	if (argc < 2) {
-		usage();
+		usage(NULL);
 		return (1);
 	}
 
@@ -300,11 +346,14 @@ cmd_delete(int argc, char *argv[])
 }
 
 static void
-usage(void)
+usage(GOptionContext *ctx)
 {
 	g_autofree char *help;
 
-	help = g_option_context_get_help(context, true, NULL);
+	if (ctx == NULL)
+		ctx = context;
+
+	help = g_option_context_get_help(ctx, true, NULL);
 	fprintf(stderr, "%s", help);
 }
 
@@ -316,11 +365,13 @@ main(int argc, char *argv[])
 	int nargs;
 	int i;
 
-	context = g_option_context_new("<COMMAND> [ARGUMENTS...] - interact with libpersist database");
+	context = g_option_context_new("COMMAND [ARGUMENTS...] - interact with libpersist database");
+	g_option_context_set_strict_posix(context, true);
+	g_option_context_set_description(context, USAGE_STRING);
 	g_option_context_add_main_entries(context, options, NULL);
 
 	if (!g_option_context_parse(context, &argc, &argv, &err)) {
-		usage();
+		usage(NULL);
 		return (1);
 	}
 
@@ -329,7 +380,7 @@ main(int argc, char *argv[])
 
 	if (args == NULL) {
 		fprintf(stderr, "No command specified.\n");
-		usage();
+		usage(NULL);
 		return (1);
 	}
 
@@ -342,6 +393,6 @@ main(int argc, char *argv[])
 	}
 
 	fprintf(stderr, "Command %s not found\n", cmd);
-	usage();
+	usage(NULL);
 	return (1);
 }
