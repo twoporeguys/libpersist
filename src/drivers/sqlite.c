@@ -35,6 +35,7 @@
 #include "../linker_set.h"
 #include "../internal.h"
 
+#define SQLITE_YIELD_DELAY	(100 * 1000)
 #define SQL_CREATE_TABLE	"CREATE TABLE IF NOT EXISTS %s (id TEXT PRIMARY KEY, value TEXT);"
 #define SQL_LIST_TABLES		"SELECT * FROM sqlite_master WHERE TYPE='table';"
 #define SQL_GET			"SELECT * FROM %s WHERE id = ?;"
@@ -187,14 +188,24 @@ sqlite_create_collection(void *arg, const char *name)
 {
 	struct sqlite_context *sqlite = arg;
 	char *errmsg;
+	int ret;
 	g_autofree char *sql = g_strdup_printf(SQL_CREATE_TABLE, name);
 
-	if (sqlite3_exec(sqlite->sc_db, sql, NULL, NULL, &errmsg) != SQLITE_OK) {
+retry:
+	ret = sqlite3_exec(sqlite->sc_db, sql, NULL, NULL, &errmsg);
+	switch (ret) {
+	case SQLITE_OK:
+		return (0);
+
+	case SQLITE_BUSY:
+	case SQLITE_LOCKED:
+		g_usleep(SQLITE_YIELD_DELAY);
+		goto retry;
+
+	default:
 		persist_set_last_error(ENXIO, "%s", errmsg);
 		return (-1);
 	}
-
-	return (0);
 }
 
 static int
@@ -211,11 +222,17 @@ sqlite_get_collections(void *arg, GPtrArray *result)
 	}
 
 	for (;;) {
+		retry:
 		switch (sqlite3_step(stmt)) {
 		case SQLITE_ROW:
 			name = (char *)sqlite3_column_text(stmt, 2);
 			g_ptr_array_add(result, name);
 			continue;
+
+		case SQLITE_LOCKED:
+		case SQLITE_BUSY:
+			g_usleep(SQLITE_YIELD_DELAY);
+			goto retry;
 
 		case SQLITE_DONE:
 			goto endloop;
@@ -269,7 +286,7 @@ retry:
 
 	case SQLITE_LOCKED:
 	case SQLITE_BUSY:
-		g_usleep(10 * 1000); /* 10ms sleep */
+		g_usleep(SQLITE_YIELD_DELAY); /* 10ms sleep */
 		goto retry;
 
 	default:
@@ -330,7 +347,7 @@ retry:
 
 	case SQLITE_LOCKED:
 	case SQLITE_BUSY:
-		g_usleep(10 * 1000); /* 10ms sleep */
+		g_usleep(SQLITE_YIELD_DELAY);
 		goto retry;
 
 	default:
@@ -620,7 +637,7 @@ retry:
 
 	case SQLITE_LOCKED:
 	case SQLITE_BUSY:
-		g_usleep(10 * 1000); /* 10ms sleep */
+		g_usleep(SQLITE_YIELD_DELAY);
 		goto retry;
 
 	default:
