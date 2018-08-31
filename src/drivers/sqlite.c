@@ -403,8 +403,10 @@ sqlite_eval_logic_and(GString *sql, rpc_object_t lst)
 	size_t len;
 	bool stop;
 
-	if (rpc_get_type(lst) != RPC_TYPE_ARRAY)
+	if (rpc_get_type(lst) != RPC_TYPE_ARRAY) {
+		persist_set_last_error(EINVAL, "'and' predicate is not an array");
 		return (false);
+	}
 
 	len = rpc_array_get_count(lst);
 	g_string_append(sql, "(");
@@ -429,8 +431,10 @@ sqlite_eval_logic_or(GString *sql, rpc_object_t lst)
 	size_t len;
 	bool stop;
 
-	if (rpc_get_type(lst) != RPC_TYPE_ARRAY)
+	if (rpc_get_type(lst) != RPC_TYPE_ARRAY) {
+		persist_set_last_error(EINVAL, "'or' predicate is not an array");
 		return (false);
+	}
 
 	len = rpc_array_get_count(lst);
 	g_string_append(sql, "(");
@@ -455,8 +459,10 @@ sqlite_eval_logic_nor(GString *sql, rpc_object_t lst)
 	size_t len;
 	bool stop;
 
-	if (rpc_get_type(lst) != RPC_TYPE_ARRAY)
+	if (rpc_get_type(lst) != RPC_TYPE_ARRAY) {
+		persist_set_last_error(EINVAL, "'nor' predicate is not an array");
 		return (false);
+	}
 
 	len = rpc_array_get_count(lst);
 	g_string_append(sql, "(");
@@ -538,8 +544,10 @@ sqlite_eval_field_operator(GString *sql, rpc_object_t rule)
 static bool
 sqlite_eval_rule(GString *sql, rpc_object_t rule)
 {
-	if (rpc_get_type(rule) != RPC_TYPE_ARRAY)
+	if (rpc_get_type(rule) != RPC_TYPE_ARRAY) {
+		persist_set_last_error(EINVAL, "Rule is not an array");
 		return (false);
+	}
 
 	switch (rpc_array_get_count(rule)) {
 	case 2:
