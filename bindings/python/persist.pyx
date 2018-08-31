@@ -274,6 +274,9 @@ cdef class Collection(object):
             params.count = True
 
         iter = persist_query(self.collection, rpc_rules.unwrap(), &params)
+        if iter == <persist_iter_t>NULL:
+            check_last_error()
+
         return CollectionIterator.wrap(iter)
 
 
@@ -319,4 +322,4 @@ cdef check_last_error():
     cdef int errcode
 
     errcode = persist_get_last_error(&errmsg)
-    raise PersistException(errcode, errmsg)
+    raise PersistException(errcode, errmsg.decode('utf-8'))
