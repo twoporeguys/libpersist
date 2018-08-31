@@ -415,7 +415,7 @@ sqlite_eval_logic_and(GString *sql, rpc_object_t lst)
 		if (!sqlite_eval_rule(sql, v))
 			return ((bool)false);
 
-		if (idx == len - 1)
+		if (idx != len - 1)
 			g_string_append(sql, "AND ");
 
 		return ((bool)true);
@@ -536,7 +536,7 @@ sqlite_eval_field_operator(GString *sql, rpc_object_t rule)
 		return (false);
 	}
 
-	g_string_append_printf(sql, SQL_EXTRACT("%s") "%s %.*s", field,
+	g_string_append_printf(sql, SQL_EXTRACT("%s") " %s %.*s", field,
 	    sql_op, (int)value_len, value_str);
 	return (true);
 }
@@ -610,7 +610,7 @@ sqlite_query(void *arg, const char *collection, rpc_object_t rules,
 	g_string_append(sql, ";");
 
 	if (sqlite3_prepare_v2(sqlite->sc_db, sql->str, -1, &stmt, NULL) != SQLITE_OK) {
-		persist_set_last_error(errno, "%s", sqlite3_errmsg(sqlite->sc_db));
+		persist_set_last_error(EFAULT, "%s", sqlite3_errmsg(sqlite->sc_db));
 		return (NULL);
 	}
 
