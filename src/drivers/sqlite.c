@@ -579,7 +579,7 @@ sqlite_query(void *arg, const char *collection, rpc_object_t rules,
 	    collection);
 
 	if (rules != NULL) {
-		if (sqlite_eval_logic_and(sql, rules)) {
+		if (!sqlite_eval_logic_and(sql, rules)) {
 			g_string_free(sql, true);
 			return (NULL);
 		}
