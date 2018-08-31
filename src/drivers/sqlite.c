@@ -41,11 +41,13 @@
 #define SQL_GET			"SELECT * FROM %s WHERE id = ?;"
 #define SQL_INSERT		"INSERT OR REPLACE INTO %s (id, value) VALUES (?, ?);"
 #define SQL_DELETE		"DELETE FROM %s WHERE id = ?;"
-#define SQL_EXTRACT(_x)		"json_extract('$." _x "')"
+#define SQL_EXTRACT(_x)		"json_quote(json_extract(value, '$." _x "'))"
+#define SQL_JSON(_x)		"json('" _x "')"
 
 struct sqlite_context
 {
 	sqlite3 *		sc_db;
+	bool			sc_trace;
 };
 
 struct sqlite_iter
@@ -167,6 +169,8 @@ sqlite_open(struct persist_db *db)
 		sqlite3_trace_v2(ctx->sc_db,
 		    SQLITE_TRACE_STMT | SQLITE_TRACE_ROW,
 		    sqlite_trace_callback, ctx);
+
+		ctx->sc_trace = true;
 	}
 
 	db->pdb_arg = ctx;
@@ -408,6 +412,11 @@ sqlite_eval_logic_and(GString *sql, rpc_object_t lst)
 		return (false);
 	}
 
+	if (rpc_array_get_count(lst) == 0) {
+		g_string_append_printf(sql, "(1==1)");
+		return (true);
+	}
+
 	len = rpc_array_get_count(lst);
 	g_string_append(sql, "(");
 
@@ -416,7 +425,7 @@ sqlite_eval_logic_and(GString *sql, rpc_object_t lst)
 			return ((bool)false);
 
 		if (idx != len - 1)
-			g_string_append(sql, "AND ");
+			g_string_append(sql, " AND ");
 
 		return ((bool)true);
 	});
@@ -444,7 +453,7 @@ sqlite_eval_logic_or(GString *sql, rpc_object_t lst)
 			return ((bool)false);
 
 		if (idx == len - 1)
-			g_string_append(sql, "OR ");
+			g_string_append(sql, " OR ");
 
 		return ((bool)true);
 	});
@@ -472,7 +481,7 @@ sqlite_eval_logic_nor(GString *sql, rpc_object_t lst)
 			return ((bool)false);
 
 		if (idx == len - 1)
-			g_string_append(sql, "AND ");
+			g_string_append(sql, " AND "); /* XXX should be NOR */
 
 		return ((bool)true);
 	});
@@ -536,8 +545,8 @@ sqlite_eval_field_operator(GString *sql, rpc_object_t rule)
 		return (false);
 	}
 
-	g_string_append_printf(sql, SQL_EXTRACT("%s") " %s %.*s", field,
-	    sql_op, (int)value_len, value_str);
+	g_string_append_printf(sql, SQL_EXTRACT("%s") " %s " SQL_JSON("%*s"),
+	    field, sql_op, (int)value_len, value_str);
 	return (true);
 }
 
@@ -609,6 +618,9 @@ sqlite_query(void *arg, const char *collection, rpc_object_t rules,
 	}
 
 	g_string_append(sql, ";");
+
+	if (sqlite->sc_trace)
+		fprintf(stderr, "(%p): query string: %s\n", sqlite, sql->str);
 
 	if (sqlite3_prepare_v2(sqlite->sc_db, sql->str, -1, &stmt, NULL) != SQLITE_OK) {
 		persist_set_last_error(EFAULT, "%s", sqlite3_errmsg(sqlite->sc_db));
