@@ -579,6 +579,7 @@ sqlite_query(void *arg, const char *collection, rpc_object_t rules,
 	    collection);
 
 	if (rules != NULL) {
+		g_string_append_printf(sql, "WHERE ");
 		if (!sqlite_eval_logic_and(sql, rules)) {
 			g_string_free(sql, true);
 			return (NULL);
