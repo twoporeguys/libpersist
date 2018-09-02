@@ -187,6 +187,16 @@ int persist_save(_Nonnull persist_collection_t col, _Nonnull rpc_object_t obj);
 
 /**
  *
+ * @param col
+ * @param objetcs
+ * @return
+ */
+int persist_save_many(_Nonnull persist_collection_t col,
+    _Nonnull rpc_object_t objects);
+
+
+/**
+ *
  * @param col Collection handle
  * @param id Primary key
  * @return

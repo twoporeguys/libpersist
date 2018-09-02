@@ -239,6 +239,22 @@ persist_save(persist_collection_t col, rpc_object_t obj)
 }
 
 int
+persist_save_many(persist_collection_t col, rpc_object_t objects)
+{
+
+	if (rpc_get_type(objects) != RPC_TYPE_ARRAY) {
+		persist_set_last_error(EINVAL, "Not an array");
+		return (-1);
+	}
+
+	if (col->pc_db->pdb_driver->pd_save_objects(col->pc_db->pdb_arg,
+	    col->pc_name, objects) != 0)
+		return (-1);
+
+	return (0);
+}
+
+int
 persist_iter_next(persist_iter_t iter, rpc_object_t *result)
 {
 	char *id;

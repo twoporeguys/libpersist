@@ -238,6 +238,23 @@ cdef class Collection(object):
         if ret != 0:
             check_last_error()
 
+    def insert_many(self, values):
+        cdef Object rpc_value
+        cdef int ret
+
+        if not self.parent.is_open:
+            raise ValueError('Database is closed')
+
+        rpc_value = Object(values)
+        if rpc_value.type != ObjectType.ARRAY:
+            raise TypeError('Value has to be a dictionary')
+
+        with nogil:
+            ret = persist_save_many(self.collection, rpc_value.unwrap())
+
+        if ret != 0:
+            check_last_error()
+
     def delete(self, id):
         if not self.parent.is_open:
             raise ValueError('Database is closed')

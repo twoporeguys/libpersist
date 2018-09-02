@@ -79,6 +79,7 @@ cdef extern from "persist.h" nogil:
     persist_iter_t persist_query(persist_collection_t col, rpc_object_t rules,
         persist_query_params_t params)
     int persist_save(persist_collection_t col, rpc_object_t obj)
+    int persist_save_many(persist_collection_t col, rpc_object_t obj)
     int persist_delete(persist_collection_t col, const char *id)
     int persist_get_last_error(char **msgp)
     void persist_collection_close(persist_collection_t collection)

@@ -76,6 +76,7 @@ static int sqlite_create_collection(void *, const char *);
 static int sqlite_get_collections(void *, GPtrArray *);
 static int sqlite_get_object(void *, const char *, const char *, rpc_object_t *);
 static int sqlite_save_object(void *, const char *, const char *, rpc_object_t);
+static int sqlite_save_objects(void *, const char *, rpc_object_t);
 static int sqlite_delete_object(void *, const char *, const char *);
 static void *sqlite_query(void *, const char *, rpc_object_t, persist_query_params_t);
 static int sqlite_query_next(void *, char **id, rpc_object_t *);
@@ -371,6 +372,61 @@ out:
 	g_free(sql);
 	g_free(buf);
 	return (ret);
+}
+
+static int
+sqlite_save_objects(void *arg, const char *collection, rpc_object_t objects)
+{
+	struct sqlite_context *sqlite = arg;
+	char *errmsg;
+	int ret;
+	bool stop;
+
+retry1:
+	ret = sqlite3_exec(sqlite->sc_db, "BEGIN TRANSACTION;", NULL, NULL, &errmsg);
+	switch (ret) {
+		case SQLITE_OK:
+			break;
+
+		case SQLITE_BUSY:
+		case SQLITE_LOCKED:
+			g_usleep(SQLITE_YIELD_DELAY);
+			goto retry1;
+
+		default:
+			persist_set_last_error(ENXIO, "%s", errmsg);
+			return (-1);
+	}
+
+	stop = rpc_array_apply(objects, ^bool(size_t idx, rpc_object_t item) {
+		rpc_auto_object_t id = NULL;
+
+		id = rpc_dictionary_detach_key(item, "id");
+		if (sqlite_save_object(arg, collection,
+		    rpc_string_get_string_ptr(id), item) != 0)
+			return (false);
+
+		return (true);
+	});
+
+retry2:
+	ret = sqlite3_exec(sqlite->sc_db, stop ? "ROLLBACK;" : "COMMIT;",
+	    NULL, NULL, &errmsg);
+	switch (ret) {
+		case SQLITE_OK:
+			break;
+
+		case SQLITE_BUSY:
+		case SQLITE_LOCKED:
+			g_usleep(SQLITE_YIELD_DELAY);
+			goto retry2;
+
+		default:
+			persist_set_last_error(ENXIO, "%s", errmsg);
+
+	}
+
+	return (0);
 }
 
 static int
@@ -694,6 +750,7 @@ static const struct persist_driver sqlite_driver = {
 	.pd_get_collections = sqlite_get_collections,
 	.pd_get_object = sqlite_get_object,
 	.pd_save_object = sqlite_save_object,
+	.pd_save_objects = sqlite_save_objects,
 	.pd_delete_object = sqlite_delete_object,
 	.pd_query = sqlite_query,
 	.pd_query_next = sqlite_query_next,

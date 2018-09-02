@@ -3,7 +3,7 @@ include(GNUInstallDirs)
 project(libpersist)
 
 find_package (PkgConfig REQUIRED)
-pkg_check_modules (GLIB REQUIRED glib-2.0>=2.40)
+pkg_check_modules(GLIB REQUIRED glib-2.0>=2.40)
 pkg_check_modules(SQLITE3 REQUIRED sqlite3)
 pkg_check_modules(LIBRPC REQUIRED librpc)
 
