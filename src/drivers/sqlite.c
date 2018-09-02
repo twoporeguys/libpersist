@@ -402,6 +402,12 @@ retry1:
 		rpc_auto_object_t id = NULL;
 
 		id = rpc_dictionary_detach_key(item, "id");
+
+		if (id == NULL) {
+			persist_set_last_error(EINVAL, "Object has no 'id' key");
+			return (false);
+		}
+
 		if (sqlite_save_object(arg, collection,
 		    rpc_string_get_string_ptr(id), item) != 0)
 			return (false);
