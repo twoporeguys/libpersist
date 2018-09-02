@@ -244,6 +244,7 @@ sqlite_get_collections(void *arg, GPtrArray *result)
 		default:
 			persist_set_last_error(EFAULT, "%s",
 			    sqlite3_errmsg(sqlite->sc_db));
+			sqlite3_finalize(stmt);
 			return (-1);
 		}
 
@@ -296,6 +297,7 @@ retry:
 	default:
 		persist_set_last_error(EFAULT, "%s",
 		    sqlite3_errmsg(sqlite->sc_db));
+		sqlite3_finalize(stmt);
 		return (-1);
 	}
 
@@ -329,18 +331,21 @@ sqlite_save_object(void *arg, const char *collection, const char *id,
 
 	if (sqlite3_prepare_v2(sqlite->sc_db, sql, -1, &stmt, NULL) != SQLITE_OK) {
 		persist_set_last_error(errno, "%s", sqlite3_errmsg(sqlite->sc_db));
-		return (-1);
+		ret = -1;
+		goto out;
 	}
 
 	if (sqlite3_bind_text(stmt, 1, id, -1, SQLITE_STATIC) != SQLITE_OK) {
 		persist_set_last_error(errno, "%s", sqlite3_errmsg(sqlite->sc_db));
-		return (-1);
+		ret = -1;
+		goto out;
 	}
 
 	if (sqlite3_bind_text64(stmt, 2, buf, (uint64_t)len, SQLITE_STATIC,
 	    SQLITE_UTF8) != SQLITE_OK) {
 		persist_set_last_error(errno, "%s", sqlite3_errmsg(sqlite->sc_db));
-		return (-1);
+		ret = -1;
+		goto out;
 	}
 
 retry:
@@ -357,9 +362,11 @@ retry:
 	default:
 		persist_set_last_error(EFAULT, "%s",
 		    sqlite3_errmsg(sqlite->sc_db));
-		return (-1);
+		ret = -1;
+		goto out;
 	}
 
+out:
 	sqlite3_finalize(stmt);
 	g_free(sql);
 	g_free(buf);
@@ -393,6 +400,7 @@ sqlite_delete_object(void *arg, const char *collection, const char *id)
 	default:
 		persist_set_last_error(EFAULT, "%s",
 		    sqlite3_errmsg(sqlite->sc_db));
+		sqlite3_finalize(stmt);
 		return (-1);
 	}
 

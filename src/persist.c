@@ -83,7 +83,7 @@ persist_collection_t
 persist_collection_get(persist_db_t db, const char *name, bool create)
 {
 	persist_collection_t result;
-	rpc_object_t col;
+	rpc_auto_object_t col = NULL;
 
 	if (db->pdb_driver->pd_get_object(db->pdb_arg, COLLECTIONS,
 	    name, &col) != 0) {
