@@ -88,7 +88,7 @@ target_link_libraries(libpersist ${LIBRPC_LIBRARIES})
 target_link_libraries(libpersist ${SQLITE3_LIBRARIES})
 
 if(ENABLE_RPATH)
-    set_target_properties(librpc PROPERTIES MACOSX_RPATH ON)
+    set_target_properties(libpersist PROPERTIES MACOSX_RPATH ON)
 endif()
 
 
