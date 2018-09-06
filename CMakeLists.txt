@@ -13,6 +13,7 @@ set(CMAKE_CXX_FLAGS "-fblocks -Wall -Wextra -Wno-unused-parameter ${PKGCONFIG_C_
 set(PYTHON_VERSION python3 CACHE STRING "Target Python version for py-persist")
 
 option(BUILD_PYTHON "Build and install Python extension" ON)
+option(ENABLE_RPATH "Enable @rpath on macOS" ON)
 
 include_directories(include)
 include_directories(/usr/local/include)
@@ -82,10 +83,14 @@ endif()
 
 set_target_properties(libpersist PROPERTIES PREFIX "")
 set_target_properties(libpersist PROPERTIES SOVERSION 1)
-set_target_properties(libpersist PROPERTIES MACOSX_RPATH ON)
 target_link_libraries(libpersist ${GLIB_LIBRARIES})
 target_link_libraries(libpersist ${LIBRPC_LIBRARIES})
 target_link_libraries(libpersist ${SQLITE3_LIBRARIES})
+
+if(ENABLE_RPATH)
+    set_target_properties(librpc PROPERTIES MACOSX_RPATH ON)
+endif()
+
 
 if(NOT APPLE)
 	target_link_libraries(libpersist BlocksRuntime)

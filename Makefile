@@ -4,6 +4,7 @@ PYTHON_VERSION := python3
 PREFIX ?= /usr/local
 BUILD_PYTHON ?= ON
 BUILD_TYPE ?= Release
+ENABLE_RPATH ?= ON
 OS := $(shell uname -s)
 
 .PHONY: bootstrap bootstrap_librpc bootstrap_$(OS) all clean build install
@@ -35,6 +36,7 @@ build:
 	    -DPYTHON_VERSION=$(PYTHON_VERSION) \
 	    -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 	    -DCMAKE_INSTALL_PREFIX=$(PREFIX) \
+	    -DENABLE_RPATH=$(RPATH) \
 	    -DBUILD_PYTHON=$(BUILD_PYTHON)
 	make -C build
 
