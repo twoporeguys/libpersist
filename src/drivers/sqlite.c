@@ -78,6 +78,7 @@ static int sqlite_get_object(void *, const char *, const char *, rpc_object_t *)
 static int sqlite_save_object(void *, const char *, const char *, rpc_object_t);
 static int sqlite_save_objects(void *, const char *, rpc_object_t);
 static int sqlite_delete_object(void *, const char *, const char *);
+static ssize_t sqlite_count(void *, const char *, rpc_object_t);
 static void *sqlite_query(void *, const char *, rpc_object_t, persist_query_params_t);
 static int sqlite_query_next(void *, char **id, rpc_object_t *);
 static void sqlite_query_close(void *);
@@ -643,6 +644,66 @@ sqlite_eval_rule(GString *sql, rpc_object_t rule)
 	}
 }
 
+static ssize_t
+sqlite_count(void *arg, const char *collection, rpc_object_t rules)
+{
+	struct sqlite_context *sqlite = arg;
+	GString *sql;
+	sqlite3_stmt *stmt;
+	ssize_t result;
+	int ret;
+
+	sql = g_string_new("SELECT ");
+	g_string_append_printf(sql, "count(id) FROM %s ", collection);
+
+	if (rules != NULL) {
+		g_string_append_printf(sql, "WHERE ");
+		if (!sqlite_eval_logic_and(sql, rules)) {
+			g_string_free(sql, true);
+			return (-1);
+		}
+	}
+
+	g_string_append(sql, ";");
+
+	if (sqlite->sc_trace)
+		fprintf(stderr, "(%p): query string: %s\n", sqlite, sql->str);
+
+	if (sqlite3_prepare_v2(sqlite->sc_db, sql->str, -1, &stmt, NULL) != SQLITE_OK) {
+		persist_set_last_error(EFAULT, "%s", sqlite3_errmsg(sqlite->sc_db));
+		return (-1);
+	}
+
+	g_string_free(sql, true);
+
+retry:
+	ret = sqlite3_step(stmt);
+	switch (ret) {
+	case SQLITE_DONE:
+		persist_set_last_error(ENOENT, "sqlite returned no rows");
+		result = -1;
+		break;
+
+	case SQLITE_ROW:
+		result = sqlite3_column_int(stmt, 0);
+		break;
+
+	case SQLITE_LOCKED:
+	case SQLITE_BUSY:
+		g_usleep(SQLITE_YIELD_DELAY);
+		goto retry;
+
+	default:
+		persist_set_last_error(EFAULT, "%s",
+		    sqlite3_errmsg(sqlite->sc_db));
+		result = -1;
+		break;
+	}
+
+	sqlite3_finalize(stmt);
+	return (result);
+}
+
 static void *
 sqlite_query(void *arg, const char *collection, rpc_object_t rules,
     persist_query_params_t params)
@@ -653,9 +714,7 @@ sqlite_query(void *arg, const char *collection, rpc_object_t rules,
 	sqlite3_stmt *stmt;
 
 	sql = g_string_new("SELECT ");
-	g_string_append_printf(sql, "%s FROM %s ",
-	    params != NULL && params->count ? "count(value)" : "id, value",
-	    collection);
+	g_string_append_printf(sql, "id, value FROM %s ", collection);
 
 	if (rules != NULL) {
 		g_string_append_printf(sql, "WHERE ");
@@ -758,6 +817,7 @@ static const struct persist_driver sqlite_driver = {
 	.pd_save_object = sqlite_save_object,
 	.pd_save_objects = sqlite_save_objects,
 	.pd_delete_object = sqlite_delete_object,
+	.pd_count = sqlite_count,
 	.pd_query = sqlite_query,
 	.pd_query_next = sqlite_query_next,
 	.pd_query_close = sqlite_query_close,

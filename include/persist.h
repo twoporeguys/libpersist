@@ -71,7 +71,6 @@ typedef bool (^persist_collection_iter_t)(const char *_Nonnull name);
 struct persist_query_params
 {
 	bool				single;
-	bool				count;
 	bool				descending;
 	const char *_Nullable		sort_field;
 	uint64_t			offset;
@@ -176,6 +175,12 @@ _Nullable rpc_object_t persist_get(_Nonnull persist_collection_t col,
  */
 _Nullable persist_iter_t persist_query(_Nonnull persist_collection_t col,
     _Nullable rpc_object_t filter, _Nullable persist_query_params_t params);
+
+/**
+ *
+ */
+ssize_t persist_count(_Nonnull persist_collection_t col,
+    _Nullable rpc_object_t filter);
 
 /**
  *

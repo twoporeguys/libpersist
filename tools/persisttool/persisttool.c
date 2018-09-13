@@ -177,6 +177,8 @@ cmd_query(int argc, char *argv[])
 	persist_collection_t col;
 	persist_iter_t iter;
 	rpc_object_t obj;
+	ssize_t n_items;
+	bool count = false;
 	struct persist_query_params params = { 0 };
 	const char *colname;
 	const char *errmsg;
@@ -202,6 +204,12 @@ cmd_query(int argc, char *argv[])
 			.description = "Field name to sort on",
 			.arg_description = "NAME"
 		},
+		{
+			.long_name = "count",
+			.arg = G_OPTION_ARG_NONE,
+			.arg_data = &count,
+			.description = "Count items"
+		},
 		{ }
 	};
 
@@ -224,6 +232,12 @@ cmd_query(int argc, char *argv[])
 		persist_get_last_error(&errmsg);
 		fprintf(stderr, "cannot open collection: %s\n", errmsg);
 		return (-1);
+	}
+
+	if (count) {
+		n_items = persist_count(col, NULL);
+		printf("%zd\n", n_items);
+		return (0);
 	}
 
 	iter = persist_query(col, NULL, &params);
@@ -343,6 +357,8 @@ cmd_delete(int argc, char *argv[])
 	if (persist_delete(col, argv[1]) != 0) {
 
 	}
+
+	return (0);
 }
 
 static void

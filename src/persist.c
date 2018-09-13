@@ -214,6 +214,14 @@ persist_query(persist_collection_t col, rpc_object_t rules,
 	return (iter);
 }
 
+ssize_t
+persist_count(persist_collection_t col, rpc_object_t filter)
+{
+
+	return (col->pc_db->pdb_driver->pd_count(col->pc_db->pdb_arg,
+	    col->pc_name, filter));
+}
+
 int
 persist_save(persist_collection_t col, rpc_object_t obj)
 {
