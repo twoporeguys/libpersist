@@ -76,6 +76,7 @@ cdef extern from "persist.h" nogil:
         rpc_object_t metadata)
     void persist_collections_apply(persist_db_t db, void *applier)
     rpc_object_t persist_get(persist_collection_t col, const char *id)
+    ssize_t persist_count(persist_collection_t col, rpc_object_t rules)
     persist_iter_t persist_query(persist_collection_t col, rpc_object_t rules,
         persist_query_params_t params)
     int persist_save(persist_collection_t col, rpc_object_t obj)

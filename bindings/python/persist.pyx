@@ -264,10 +264,22 @@ cdef class Collection(object):
 
         persist_delete(self.collection, id.encode('utf-8'))
 
-    def query(self, rules, sort=None, descending=False, offset=None, limit=None, count=False):
+    def count(self, rules):
+        cdef ssize_t result
+        cdef rpc_object_t rpc_rules = Object(rules).unwrap()
+
+        with nogil:
+            result = persist_count(self.collection, rpc_rules)
+
+        if result == -1:
+            check_last_error()
+
+        return result
+
+    def query(self, rules, sort=None, descending=False, offset=None, limit=None):
         cdef persist_iter_t iter
         cdef persist_query_params params
-        cdef Object rpc_rules = Object(rules)
+        cdef rpc_object_t rpc_rules = Object(rules).unwrap()
 
         if not self.parent.is_open:
             raise ValueError('Database is closed')
@@ -287,10 +299,9 @@ cdef class Collection(object):
         if limit is not None:
             params.limit = limit
 
-        if count:
-            params.count = True
+        with nogil:
+            iter = persist_query(self.collection, rpc_rules, &params)
 
-        iter = persist_query(self.collection, rpc_rules.unwrap(), &params)
         if iter == <persist_iter_t>NULL:
             check_last_error()
 
