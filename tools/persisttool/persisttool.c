@@ -179,7 +179,7 @@ cmd_query(int argc, char *argv[])
 	rpc_object_t obj;
 	ssize_t n_items;
 	bool count = false;
-	struct persist_query_params params = { 0 };
+	struct persist_query_params params = { };
 	const char *colname;
 	const char *errmsg;
 	const GOptionEntry options[] = {

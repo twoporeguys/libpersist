@@ -42,7 +42,8 @@ ldflags = ['-lpersist', '-lrpc']
 if 'CMAKE_SOURCE_DIR' in os.environ:
     cflags += [
         os.path.expandvars('-I${CMAKE_SOURCE_DIR}/include'),
-        os.path.expandvars('-I../../include/')
+        os.path.expandvars('-I../../include/'),
+        os.path.expandvars('-I${CMAKE_PREFIX}/include')
     ]
     ldflags += [
         os.path.expandvars('-L../..'),
