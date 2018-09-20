@@ -157,7 +157,9 @@ static int
 sqlite_open(struct persist_db *db)
 {
 	struct sqlite_context *ctx;
+	char *errmsg;
 	int err;
+	int ret;
 
 	ctx = g_malloc0(sizeof(*ctx));
 
@@ -173,6 +175,26 @@ sqlite_open(struct persist_db *db)
 		    sqlite_trace_callback, ctx);
 
 		ctx->sc_trace = true;
+	}
+
+retry:
+	ret = sqlite3_exec(ctx->sc_db, "PRAGMA journal_mode=WAL;", NULL, NULL,
+	    &errmsg);
+
+	switch (ret) {
+	case SQLITE_OK:
+		break;
+
+	case SQLITE_BUSY:
+	case SQLITE_LOCKED:
+		g_usleep(SQLITE_YIELD_DELAY);
+	goto retry;
+
+	default:
+		persist_set_last_error(ENXIO, "%s", errmsg);
+		sqlite3_close(ctx->sc_db);
+		g_free(ctx);
+		return (-1);
 	}
 
 	db->pdb_arg = ctx;
