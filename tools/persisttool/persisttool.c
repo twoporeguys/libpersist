@@ -375,7 +375,7 @@ cmd_get_metadata(int argc, char *argv[])
 static int
 cmd_set_metadata(int argc, char *argv[])
 {
-
+	return (-1);
 }
 
 static int
