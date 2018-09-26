@@ -273,6 +273,7 @@ cmd_query_dataset(int argc, char *argv[])
 	struct persist_query_params params = { };
 	const char *dataset_id;
 	const char *errmsg;
+	rpc_auto_object_t filter = NULL;
 	const GOptionEntry options[] = {
 		{
 			.long_name = "limit",
