@@ -205,6 +205,33 @@ cdef class Collection(object):
     cdef persist_collection_t unwrap(self) nogil:
         return self.collection
 
+    def get_metadata(self, item_id, default=None):
+        cdef rpc_object_t ret
+
+        if not self.parent.is_open:
+            raise ValueError('Database is closed')
+
+        if not isinstance(item_id, str):
+            raise TypeError('Id needs to be a string')
+
+        ret = persist_get_metadata(self.collection, item_id.encode('utf-8'))
+
+        if ret == <rpc_object_t>NULL:
+            return default
+
+        return Object.wrap(ret).unpack()
+
+    def set_metadata(self, item_id, metadata):
+        cdef Object rpc_metadata = Object(metadata)
+
+        if not self.parent.is_open:
+            raise ValueError('Database is closed')
+
+        if not isinstance(item_id, str):
+            raise TypeError('Id needs to be a string')
+
+        persist_set_metadata(self.collection, item_id, rpc_metadata.unwrap())
+
     def get(self, id, default=None):
         cdef rpc_object_t ret
 
