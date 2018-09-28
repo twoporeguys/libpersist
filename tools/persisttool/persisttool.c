@@ -40,13 +40,15 @@
     "  set-metadata COLLECTION\n"					\
     "  get COLLECTION ID\n"						\
     "  insert COLLECTION ID\n"						\
-    "  delete COLLECTION ID\n"
+    "  delete COLLECTION ID\n"					\
+    "  query-dataset DATASET_ID\n"
 
 static int open_db(const char *, const char *);
 static int print_object(rpc_object_t);
 static rpc_object_t ingest_object(void);
 static int cmd_list(int, char *[]);
 static int cmd_query(int, char *[]);
+static int cmd_query_dataset(int, char *[]);
 static int cmd_get_metadata(int, char *[]);
 static int cmd_set_metadata(int, char *[]);
 static int cmd_get(int, char *[]);
@@ -72,6 +74,7 @@ static struct {
 	{ "get", cmd_get },
 	{ "insert", cmd_insert },
 	{ "delete", cmd_delete },
+	{ "query-dataset", cmd_query_dataset },
 	{ }
 };
 
@@ -258,6 +261,97 @@ cmd_query(int argc, char *argv[])
 }
 
 static int
+cmd_query_dataset(int argc, char *argv[])
+{
+	GError *err = NULL;
+	GOptionContext *context;
+	persist_collection_t col;
+	persist_iter_t iter;
+	rpc_object_t obj;
+	ssize_t n_items;
+	bool count = false;
+	struct persist_query_params params = { };
+	const char *dataset_id;
+	const char *errmsg;
+	rpc_auto_object_t filter = NULL;
+	const GOptionEntry options[] = {
+		{
+			.long_name = "limit",
+			.arg = G_OPTION_ARG_INT64,
+			.arg_data = &params.limit,
+			.description = "Maximum number of results to return",
+			.arg_description = "NUM"
+		},
+		{
+			.long_name = "offset",
+			.arg = G_OPTION_ARG_INT64,
+			.arg_data = &params.offset,
+			.description = "Number of entries to skip",
+			.arg_description = "NUM"
+		},
+		{
+			.long_name = "sort",
+			.arg = G_OPTION_ARG_STRING,
+			.arg_data = &params.sort_field,
+			.description = "Field name to sort on",
+			.arg_description = "NAME"
+		},
+		{
+			.long_name = "count",
+			.arg = G_OPTION_ARG_NONE,
+			.arg_data = &count,
+			.description = "Count items"
+		},
+		{ }
+	};
+
+	if (argc < 1) {
+		usage(NULL);
+		return (1);
+	}
+
+	dataset_id = argv[0];
+	context = g_option_context_new("query-dataset DATASET_ID [OPTION...]");
+	g_option_context_add_main_entries(context, options, NULL);
+
+	if (!g_option_context_parse(context, &argc, &argv, &err)) {
+		usage(context);
+		return (1);
+	}
+
+	col = persist_collection_get(db, "recordings", false);
+	if (col == NULL) {
+		persist_get_last_error(&errmsg);
+		fprintf(stderr, "cannot open collection: %s\n", errmsg);
+		return (-1);
+	}
+
+	filter = rpc_object_pack("[[s,s,s]]", "record_id", "=", dataset_id);
+
+	if (count) {
+		n_items = persist_count(col, filter);
+		printf("%zd\n", n_items);
+		return (0);
+	}
+
+	iter = persist_query(col, filter, &params);
+	for (;;) {
+		if (persist_iter_next(iter, &obj)) {
+			persist_get_last_error(&errmsg);
+			fprintf(stderr, "cannot read iterator: %s\n", errmsg);
+			return (-1);
+		}
+
+		if (obj == NULL)
+			break;
+
+		print_object(obj);
+	}
+
+	return (0);
+}
+
+static int
 cmd_get_metadata(int argc, char *argv[])
 {
 	rpc_auto_object_t metadata = NULL;
@@ -282,7 +376,7 @@ cmd_get_metadata(int argc, char *argv[])
 static int
 cmd_set_metadata(int argc, char *argv[])
 {
-
+	return (-1);
 }
 
 static int

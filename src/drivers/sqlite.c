@@ -711,7 +711,12 @@ retry:
 		break;
 
 	case SQLITE_LOCKED:
+		fprintf(stderr, "(%p): Timeout.. SQLITE_LOCKED\n", sqlite);
+		g_usleep(SQLITE_YIELD_DELAY);
+		goto retry;
+
 	case SQLITE_BUSY:
+		fprintf(stderr, "(%p): Timeout.. SQLITE_BUSY\n", sqlite);
 		g_usleep(SQLITE_YIELD_DELAY);
 		goto retry;
 

@@ -68,6 +68,10 @@ cdef extern from "persist.h" nogil:
     void persist_close(persist_db_t db)
     persist_collection_t persist_collection_get(persist_db_t db,
         const char *name, bint create)
+    rpc_object_t persist_get_metadata(persist_collection_t col,
+        const char *id)
+    int persist_set_metadata(persist_collection_t col, const char *id,
+        rpc_object_t metadata)
     bint persist_collection_exists(persist_db_t db, const char *name)
     int persist_collection_remove(persist_db_t db, const char *name)
     rpc_object_t persist_collection_get_metadata(persist_db_t db,
