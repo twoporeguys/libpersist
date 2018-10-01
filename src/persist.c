@@ -195,51 +195,6 @@ persist_get(persist_collection_t col, const char *id)
 	return (result);
 }
 
-rpc_object_t
-persist_get_metadata(persist_collection_t col, const char *id)
-{
-	rpc_object_t result;
-
-	if (col->pc_db->pdb_driver->pd_get_object(col->pc_db->pdb_arg,
-	    col->pc_name, id, &result) != 0) {
-		persist_set_last_error(ENOENT, "Object not found");
-		return (NULL);
-	}
-
-	if (rpc_get_type(result) != RPC_TYPE_DICTIONARY) {
-		persist_set_last_error(EINVAL,
-		    "A non-dictionary object returned");
-		rpc_release_impl(result);
-		return (NULL);
-	}
-
-	return (rpc_dictionary_get_value(result, "metadata"));
-}
-
-int
-persist_set_metadata(persist_collection_t col, const char *id,
-    rpc_object_t metadata)
-{
-	rpc_object_t result;
-
-	if (col->pc_db->pdb_driver->pd_get_object(col->pc_db->pdb_arg,
-	    col->pc_name, id, &result) != 0) {
-		persist_set_last_error(ENOENT, "Object not found");
-		return (-1);
-	}
-
-	if (rpc_get_type(result) != RPC_TYPE_DICTIONARY) {
-		persist_set_last_error(EINVAL,
-		    "A non-dictionary object returned");
-		rpc_release_impl(result);
-		return (-1);
-	}
-
-	rpc_dictionary_set_value(result, "metadata", metadata);
-	return (col->pc_db->pdb_driver->pd_save_object(col->pc_db->pdb_arg, col->pc_name,
-	    id, result));
-}
-
 persist_iter_t
 persist_query(persist_collection_t col, rpc_object_t rules,
     persist_query_params_t params)
