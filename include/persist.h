@@ -141,7 +141,7 @@ _Nullable rpc_object_t persist_collection_get_metadata(
  * @param db Database handle
  * @param name Collection name
  * @param metadata
- * @return
+ * @return 0 on success, -1 on error
  */
 int persist_collection_set_metadata(_Nonnull persist_db_t db,
     const char *_Nonnull name, _Nullable rpc_object_t metadata);
@@ -186,7 +186,7 @@ ssize_t persist_count(_Nonnull persist_collection_t col,
  *
  * @param col Collection handle
  * @param obj Object to save
- * @return
+ * @return 0 on success, -1 on error
  */
 int persist_save(_Nonnull persist_collection_t col, _Nonnull rpc_object_t obj);
 
@@ -194,24 +194,58 @@ int persist_save(_Nonnull persist_collection_t col, _Nonnull rpc_object_t obj);
  *
  * @param col
  * @param objetcs
- * @return
+ * @return 0 on success, -1 on error
  */
 int persist_save_many(_Nonnull persist_collection_t col,
     _Nonnull rpc_object_t objects);
 
 
 /**
+ * Deletes an object from a collection.
  *
  * @param col Collection handle
  * @param id Primary key
- * @return
+ * @return 0 on success, -1 on error
  */
 int persist_delete(_Nonnull persist_collection_t col, const char *_Nonnull id);
 
 /**
+ * Starts a database transaction.
+ *
+ * All modifications made after calling this functions will not
+ * be committed until @ref persist_commit_transaction are called.
+ * Pending changes can be rolled back using @ref persist_rollback_transaction
+ * function.
+ *
+ * @param db Database handle
+ * @return 0 on success, -1 on error
+ */
+int persist_start_transaction(_Nonnull persist_db_t db);
+
+/**
+ * Commits a pending database transaction.
+ *
+ * All pending changes are committed to the database file.
+ *
+ * @param db Database handle
+ * @return 0 on success, -1 on error
+ */
+int persist_commit_transaction(_Nonnull persist_db_t db);
+
+/**
+ * Rolls back a pending database transaction.
+ *
+ * All pending changes are discarded.
+ *
+ * @param db Database handle
+ * @return 0 on success, -1 on error
+ */
+int persist_rollback_transaction(_Nonnull persist_db_t db);
+
+/**
  *
  * @param iter
- * @return
+ * @return 0 on success, -1 on error
  */
 int persist_iter_next(_Nonnull persist_iter_t iter,
     _Nullable rpc_object_t *_Nonnull result);

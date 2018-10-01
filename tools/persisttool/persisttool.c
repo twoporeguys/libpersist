@@ -282,7 +282,28 @@ cmd_get_metadata(int argc, char *argv[])
 static int
 cmd_set_metadata(int argc, char *argv[])
 {
+	rpc_auto_object_t metadata = NULL;
+	const char *errmsg;
 
+	if (argc < 1) {
+		usage(NULL);
+		return (1);
+	}
+
+	metadata = ingest_object();
+	if (metadata == NULL) {
+		persist_get_last_error(&errmsg);
+		fprintf(stderr, "cannot read metadata: %s\n", errmsg);
+		return (1);
+	}
+
+	if (persist_collection_set_metadata(db, argv[0], metadata) < 0) {
+		persist_get_last_error(&errmsg);
+		fprintf(stderr, "cannot set metadata: %s\n", errmsg);
+		return (1);
+	}
+
+	return (0);
 }
 
 static int

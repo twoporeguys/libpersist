@@ -69,6 +69,7 @@ static bool sqlite_eval_logic_operator(GString *, rpc_object_t);
 static bool sqlite_eval_field_operator(GString *, rpc_object_t);
 static bool sqlite_eval_rule(GString *, rpc_object_t);
 static int sqlite_trace_callback(unsigned int, void *, void *, void *);
+static int sqlite_exec(struct sqlite_context *, const char *);
 static int sqlite_unpack(sqlite3_stmt *, char **, rpc_object_t *);
 static int sqlite_open(struct persist_db *);
 static void sqlite_close(struct persist_db *);
@@ -78,6 +79,9 @@ static int sqlite_get_object(void *, const char *, const char *, rpc_object_t *)
 static int sqlite_save_object(void *, const char *, const char *, rpc_object_t);
 static int sqlite_save_objects(void *, const char *, rpc_object_t);
 static int sqlite_delete_object(void *, const char *, const char *);
+static int sqlite_start_tx(void *);
+static int sqlite_commit_tx(void *);
+static int sqlite_rollback_tx(void *);
 static ssize_t sqlite_count(void *, const char *, rpc_object_t);
 static void *sqlite_query(void *, const char *, rpc_object_t, persist_query_params_t);
 static int sqlite_query_next(void *, char **id, rpc_object_t *);
@@ -120,6 +124,35 @@ sqlite_trace_callback(unsigned int code, void *ctx, void *p, void *x)
 }
 
 static int
+sqlite_exec(struct sqlite_context *ctx, const char *sql)
+{
+	char *errmsg;
+	int ret;
+
+	retry:
+	ret = sqlite3_exec(ctx->sc_db, sql, NULL, NULL, &errmsg);
+
+	switch (ret) {
+		case SQLITE_OK:
+		case SQLITE_DONE:
+			break;
+
+		case SQLITE_BUSY:
+		case SQLITE_LOCKED:
+			g_usleep(SQLITE_YIELD_DELAY);
+			goto retry;
+
+		default:
+			persist_set_last_error(ENXIO, "%s", errmsg);
+			sqlite3_close(ctx->sc_db);
+			g_free(ctx);
+			return (-1);
+	}
+
+	return (0);
+}
+
+static int
 sqlite_unpack(sqlite3_stmt *stmt, char **idp, rpc_object_t *result)
 {
 	const uint8_t *id;
@@ -157,9 +190,7 @@ static int
 sqlite_open(struct persist_db *db)
 {
 	struct sqlite_context *ctx;
-	char *errmsg;
 	int err;
-	int ret;
 
 	ctx = g_malloc0(sizeof(*ctx));
 
@@ -177,21 +208,7 @@ sqlite_open(struct persist_db *db)
 		ctx->sc_trace = true;
 	}
 
-retry:
-	ret = sqlite3_exec(ctx->sc_db, "PRAGMA journal_mode=WAL;", NULL, NULL,
-	    &errmsg);
-
-	switch (ret) {
-	case SQLITE_OK:
-		break;
-
-	case SQLITE_BUSY:
-	case SQLITE_LOCKED:
-		g_usleep(SQLITE_YIELD_DELAY);
-	goto retry;
-
-	default:
-		persist_set_last_error(ENXIO, "%s", errmsg);
+	if (sqlite_exec(ctx, "PRAGMA journal_mode=WAL;") != 0) {
 		sqlite3_close(ctx->sc_db);
 		g_free(ctx);
 		return (-1);
@@ -215,25 +232,9 @@ static int
 sqlite_create_collection(void *arg, const char *name)
 {
 	struct sqlite_context *sqlite = arg;
-	char *errmsg;
-	int ret;
 	g_autofree char *sql = g_strdup_printf(SQL_CREATE_TABLE, name);
 
-retry:
-	ret = sqlite3_exec(sqlite->sc_db, sql, NULL, NULL, &errmsg);
-	switch (ret) {
-	case SQLITE_OK:
-		return (0);
-
-	case SQLITE_BUSY:
-	case SQLITE_LOCKED:
-		g_usleep(SQLITE_YIELD_DELAY);
-		goto retry;
-
-	default:
-		persist_set_last_error(ENXIO, "%s", errmsg);
-		return (-1);
-	}
+	return (sqlite_exec(sqlite, sql));
 }
 
 static int
@@ -400,26 +401,7 @@ out:
 static int
 sqlite_save_objects(void *arg, const char *collection, rpc_object_t objects)
 {
-	struct sqlite_context *sqlite = arg;
-	char *errmsg;
-	int ret;
 	bool stop;
-
-retry1:
-	ret = sqlite3_exec(sqlite->sc_db, "BEGIN TRANSACTION;", NULL, NULL, &errmsg);
-	switch (ret) {
-		case SQLITE_OK:
-			break;
-
-		case SQLITE_BUSY:
-		case SQLITE_LOCKED:
-			g_usleep(SQLITE_YIELD_DELAY);
-			goto retry1;
-
-		default:
-			persist_set_last_error(ENXIO, "%s", errmsg);
-			return (-1);
-	}
 
 	stop = rpc_array_apply(objects, ^bool(size_t idx, rpc_object_t item) {
 		rpc_auto_object_t id = NULL;
@@ -438,24 +420,7 @@ retry1:
 		return (true);
 	});
 
-retry2:
-	ret = sqlite3_exec(sqlite->sc_db, stop ? "ROLLBACK;" : "COMMIT;",
-	    NULL, NULL, &errmsg);
-	switch (ret) {
-		case SQLITE_OK:
-			break;
-
-		case SQLITE_BUSY:
-		case SQLITE_LOCKED:
-			g_usleep(SQLITE_YIELD_DELAY);
-			goto retry2;
-
-		default:
-			persist_set_last_error(ENXIO, "%s", errmsg);
-
-	}
-
-	return (0);
+	return (stop ? -1 : 0);
 }
 
 static int
@@ -492,6 +457,30 @@ sqlite_delete_object(void *arg, const char *collection, const char *id)
 	sqlite3_finalize(stmt);
 	g_free(sql);
 	return (ret);
+}
+
+static int
+sqlite_start_tx(void *arg)
+{
+	struct sqlite_context *sqlite = arg;
+
+	return (sqlite_exec(sqlite, "BEGIN TRANSACTION;"));
+}
+
+static int
+sqlite_commit_tx(void *arg)
+{
+	struct sqlite_context *sqlite = arg;
+
+	return (sqlite_exec(sqlite, "COMMIT TRANSACTION;"));
+}
+
+static int
+sqlite_rollback_tx(void *arg)
+{
+	struct sqlite_context *sqlite = arg;
+
+	return (sqlite_exec(sqlite, "ROLLBACK TRANSACTION;"));
 }
 
 static bool
@@ -839,6 +828,9 @@ static const struct persist_driver sqlite_driver = {
 	.pd_save_object = sqlite_save_object,
 	.pd_save_objects = sqlite_save_objects,
 	.pd_delete_object = sqlite_delete_object,
+	.pd_start_tx = sqlite_start_tx,
+	.pd_commit_tx = sqlite_commit_tx,
+	.pd_rollback_tx = sqlite_rollback_tx,
 	.pd_count = sqlite_count,
 	.pd_query = sqlite_query,
 	.pd_query_next = sqlite_query_next,
