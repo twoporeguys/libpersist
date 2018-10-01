@@ -109,26 +109,6 @@ _Nullable persist_collection_t persist_collection_get(
     _Nonnull persist_db_t db, const char *_Nonnull name, bool create);
 
 /**
- * Retrieves collection metadata object for collection @p name.
- *
- * @param col Collection handle
- * @param id ID of item
- * @return Metadata object.
- */
-_Nullable rpc_object_t persist_get_metadata(
-    _Nonnull persist_collection_t col, const char *_Nonnull id);
-
-/**
- *
- * @param col Collection handle
- * @param id ID of item
- * @param metadata Metadata object.
- * @return
- */
-int persist_set_metadata(_Nonnull persist_collection_t col,
-    const char *_Nonnull id, _Nullable rpc_object_t metadata);
-
-/**
  *
  * @param db Database handle
  * @param name Collection name
