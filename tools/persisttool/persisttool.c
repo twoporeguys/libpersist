@@ -250,12 +250,6 @@ cmd_query(int argc, char *argv[])
 		return (-1);
 	}
 
-	if (count) {
-		n_items = persist_count(col, NULL);
-		printf("%zd\n", n_items);
-		return (0);
-	}
-
 	if (filter != NULL) {
 		args = rpc_array_create();
 		for (ptr = &filter[0]; *ptr != NULL; ptr++) {
@@ -269,6 +263,12 @@ cmd_query(int argc, char *argv[])
 			rpc_array_append_stolen_value(args,
 			    rpc_object_pack("[s,s,v]", name, "=", val));
 		}
+	}
+
+	if (count) {
+		n_items = persist_count(col, args);
+		printf("%zd\n", n_items);
+		return (0);
 	}
 
 	iter = persist_query(col, args, &params);
