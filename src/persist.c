@@ -66,7 +66,8 @@ persist_open(const char *path, const char *driver, rpc_object_t params)
 
 	if (db->pdb_driver->pd_create_collection(db->pdb_arg,
 	    COLLECTIONS) != 0) {
-
+		g_free(db);
+		return (NULL);
 	}
 
 	return (db);
