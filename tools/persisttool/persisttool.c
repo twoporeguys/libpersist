@@ -177,11 +177,15 @@ cmd_query(int argc, char *argv[])
 	persist_collection_t col;
 	persist_iter_t iter;
 	rpc_object_t obj;
+	rpc_auto_object_t args = NULL;
 	ssize_t n_items;
 	bool count = false;
 	struct persist_query_params params = { };
+	char **filter;
 	const char *colname;
 	const char *errmsg;
+	char **ptr;
+	char *name;
 	const GOptionEntry options[] = {
 		{
 			.long_name = "limit",
@@ -209,6 +213,12 @@ cmd_query(int argc, char *argv[])
 			.arg = G_OPTION_ARG_NONE,
 			.arg_data = &count,
 			.description = "Count items"
+		},
+		{
+			.long_name = G_OPTION_REMAINING,
+			.arg = G_OPTION_ARG_STRING_ARRAY,
+			.arg_data = &filter,
+			.description = "Filter predicates"
 		},
 		{ }
 	};
@@ -240,7 +250,22 @@ cmd_query(int argc, char *argv[])
 		return (0);
 	}
 
-	iter = persist_query(col, NULL, &params);
+	if (filter != NULL) {
+		args = rpc_array_create();
+		for (ptr = &filter[0]; *ptr != NULL; ptr++) {
+			name = strsep(ptr, "=");
+			if (name == NULL || *ptr == NULL)
+				break;
+
+			rpc_object_t val = rpc_serializer_load("yaml",
+			    *ptr, strlen(*ptr));
+
+			rpc_array_append_stolen_value(args,
+			    rpc_object_pack("[s,s,v]", name, "=", val));
+		}
+	}
+
+	iter = persist_query(col, args, &params);
 	for (;;) {
 		if (persist_iter_next(iter, &obj)) {
 			persist_get_last_error(&errmsg);
