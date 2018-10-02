@@ -175,6 +175,23 @@ persist_collections_apply(persist_db_t db, persist_collection_iter_t fn)
 	}
 }
 
+int
+persist_add_index(persist_collection_t col, const char *name, const char *path)
+{
+
+	return (col->pc_db->pdb_driver->pd_add_index(col->pc_db->pdb_arg,
+	    col->pc_name, name, path));
+}
+
+
+int
+persist_drop_index(persist_collection_t col, const char *name)
+{
+
+	return (col->pc_db->pdb_driver->pd_drop_index(col->pc_db->pdb_arg,
+	    col->pc_name, name));
+}
+
 rpc_object_t
 persist_get(persist_collection_t col, const char *id)
 {

@@ -40,7 +40,9 @@
     "  set-metadata COLLECTION\n"					\
     "  get COLLECTION ID\n"						\
     "  insert COLLECTION ID\n"						\
-    "  delete COLLECTION ID\n"
+    "  delete COLLECTION ID\n"						\
+    "  add-index COLLECTION NAME PATH\n"				\
+    "  drop-index COLLECTION NAME\n"
 
 static int open_db(const char *, const char *);
 static int print_object(rpc_object_t);
@@ -52,6 +54,8 @@ static int cmd_set_metadata(int, char *[]);
 static int cmd_get(int, char *[]);
 static int cmd_insert(int, char *[]);
 static int cmd_delete(int, char *[]);
+static int cmd_add_index(int, char *[]);
+static int cmd_drop_index(int, char *[]);
 static void usage(GOptionContext *);
 
 static const char *file;
@@ -72,6 +76,8 @@ static struct {
 	{ "get", cmd_get },
 	{ "insert", cmd_insert },
 	{ "delete", cmd_delete },
+	{ "add-index", cmd_add_index },
+	{ "drop-index", cmd_drop_index },
 	{ }
 };
 
@@ -389,6 +395,7 @@ static int
 cmd_delete(int argc, char *argv[])
 {
 	persist_collection_t col;
+	const char *errmsg;
 
 	if (argc < 2) {
 		usage(NULL);
@@ -401,7 +408,58 @@ cmd_delete(int argc, char *argv[])
 	}
 
 	if (persist_delete(col, argv[1]) != 0) {
+		persist_get_last_error(&errmsg);
+		fprintf(stderr, "cannot delete object: %s\n", errmsg);
+	}
 
+	return (0);
+}
+
+static int
+cmd_add_index(int argc, char *argv[])
+{
+	persist_collection_t col;
+	const char *errmsg;
+
+	if (argc < 3) {
+		usage(NULL);
+		return (1);
+	}
+
+	col = persist_collection_get(db, argv[0], false);
+	if (col == NULL) {
+		persist_get_last_error(&errmsg);
+		fprintf(stderr, "cannot get collection: %s\n", errmsg);
+	}
+
+	if (persist_add_index(col, argv[1], argv[2]) < 0) {
+		persist_get_last_error(&errmsg);
+		fprintf(stderr, "cannot add index: %s\n", errmsg);
+	}
+
+	return (0);
+}
+
+static int
+cmd_drop_index(int argc, char *argv[])
+{
+	persist_collection_t col;
+	const char *errmsg;
+
+	if (argc < 2) {
+		usage(NULL);
+		return (1);
+	}
+
+	col = persist_collection_get(db, argv[0], false);
+	if (col == NULL) {
+		persist_get_last_error(&errmsg);
+		fprintf(stderr, "cannot get collection: %s\n", errmsg);
+	}
+
+	if (persist_drop_index(col, argv[1]) < 0) {
+		persist_get_last_error(&errmsg);
+		fprintf(stderr, "cannot drop index: %s\n", errmsg);
 	}
 
 	return (0);

@@ -37,10 +37,13 @@
 
 #define SQLITE_YIELD_DELAY	(100 * 1000)
 #define SQL_CREATE_TABLE	"CREATE TABLE IF NOT EXISTS %s (id TEXT PRIMARY KEY, value TEXT);"
+#define SQL_DROP_TABLE		"DROP TABLE %s;"
 #define SQL_LIST_TABLES		"SELECT * FROM sqlite_master WHERE TYPE='table';"
 #define SQL_GET			"SELECT * FROM %s WHERE id = ?;"
 #define SQL_INSERT		"INSERT OR REPLACE INTO %s (id, value) VALUES (?, ?);"
 #define SQL_DELETE		"DELETE FROM %s WHERE id = ?;"
+#define SQL_ADD_INDEX(_x)	"CREATE INDEX %s_%s ON %s(" SQL_EXTRACT(_x) ");"
+#define SQL_DROP_INDEX		"DROP INDEX %s_%s"
 #define SQL_EXTRACT(_x)		"json_quote(json_extract(value, '$." _x "'))"
 #define SQL_JSON(_x)		"json('" _x "')"
 
@@ -74,7 +77,10 @@ static int sqlite_unpack(sqlite3_stmt *, char **, rpc_object_t *);
 static int sqlite_open(struct persist_db *);
 static void sqlite_close(struct persist_db *);
 static int sqlite_create_collection(void *, const char *);
+static int sqlite_destroy_collection(void *, const char *);
 static int sqlite_get_collections(void *, GPtrArray *);
+static int sqlite_add_index(void *, const char *, const char *, const char *);
+static int sqlite_drop_index(void *, const char *, const char *);
 static int sqlite_get_object(void *, const char *, const char *, rpc_object_t *);
 static int sqlite_save_object(void *, const char *, const char *, rpc_object_t);
 static int sqlite_save_objects(void *, const char *, rpc_object_t);
@@ -144,8 +150,6 @@ sqlite_exec(struct sqlite_context *ctx, const char *sql)
 
 		default:
 			persist_set_last_error(ENXIO, "%s", errmsg);
-			sqlite3_close(ctx->sc_db);
-			g_free(ctx);
 			return (-1);
 	}
 
@@ -238,6 +242,15 @@ sqlite_create_collection(void *arg, const char *name)
 }
 
 static int
+sqlite_destroy_collection(void *arg, const char *name)
+{
+	struct sqlite_context *sqlite = arg;
+	g_autofree char *sql = g_strdup_printf(SQL_DROP_TABLE, name);
+
+	return (sqlite_exec(sqlite, sql));
+}
+
+static int
 sqlite_get_collections(void *arg, GPtrArray *result)
 {
 	struct sqlite_context *sqlite = arg;
@@ -279,6 +292,27 @@ endloop:
 
 	sqlite3_finalize(stmt);
 	return (0);
+}
+
+static int
+sqlite_add_index(void *arg, const char *collection, const char *name,
+    const char *path)
+{
+	struct sqlite_context *sqlite = arg;
+	g_autofree char *sql = g_strdup_printf(SQL_ADD_INDEX("%s"),
+	    collection, name, collection, path);
+
+	return (sqlite_exec(sqlite, sql));
+}
+
+static int
+sqlite_drop_index(void *arg, const char *collection, const char *name)
+{
+	struct sqlite_context *sqlite = arg;
+	g_autofree char *sql = g_strdup_printf(SQL_DROP_INDEX, collection,
+	    name);
+
+	return (sqlite_exec(sqlite, sql));
 }
 
 static int
@@ -824,6 +858,9 @@ static const struct persist_driver sqlite_driver = {
 	.pd_close = sqlite_close,
 	.pd_create_collection = sqlite_create_collection,
 	.pd_get_collections = sqlite_get_collections,
+	.pd_destroy_collection = sqlite_destroy_collection,
+	.pd_add_index = sqlite_add_index,
+	.pd_drop_index = sqlite_drop_index,
 	.pd_get_object = sqlite_get_object,
 	.pd_save_object = sqlite_save_object,
 	.pd_save_objects = sqlite_save_objects,

@@ -45,6 +45,8 @@ struct persist_driver
 	int (*pd_get_collections)(void *, GPtrArray *);
 	int (*pd_create_collection)(void *, const char *);
 	int (*pd_destroy_collection)(void *, const char *);
+	int (*pd_add_index)(void *, const char *, const char *, const char *);
+	int (*pd_drop_index)(void *, const char *, const char *);
 	int (*pd_get_object)(void *, const char *, const char *, rpc_object_t *);
 	int (*pd_save_object)(void *, const char *, const char *, rpc_object_t);
 	int (*pd_save_objects)(void *, const char *, rpc_object_t);

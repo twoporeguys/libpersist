@@ -153,6 +153,26 @@ int persist_collection_set_metadata(_Nonnull persist_db_t db,
 void persist_collection_close(_Nonnull persist_collection_t collection);
 
 /**
+ *
+ * @param col
+ * @param name
+ * @param path
+ * @return
+ */
+int persist_add_index(_Nonnull persist_collection_t col,
+    const char *_Nonnull name, const char *_Nonnull path);
+
+/**
+ *
+ * @param col
+ * @param name
+ * @return
+ */
+int persist_drop_index(_Nonnull persist_collection_t col,
+    const char *_Nonnull name);
+
+
+/**
  * @param db Database handle
  */
 void persist_collections_apply(_Nonnull persist_db_t db,
