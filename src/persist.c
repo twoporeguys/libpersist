@@ -280,6 +280,37 @@ persist_save_many(persist_collection_t col, rpc_object_t objects)
 }
 
 int
+persist_start_transaction(persist_db_t db)
+{
+
+	return (db->pdb_driver->pd_start_tx(db->pdb_arg));
+}
+
+
+int
+persist_commit_transaction(persist_db_t db)
+{
+
+	return (db->pdb_driver->pd_commit_tx(db->pdb_arg));
+}
+
+int
+persist_rollback_transaction(persist_db_t db)
+{
+
+	return (db->pdb_driver->pd_rollback_tx(db->pdb_arg));
+}
+
+
+bool
+persist_transaction_active(_Nonnull persist_db_t db)
+{
+
+	return (db->pdb_driver->pd_in_tx(db->pdb_arg));
+}
+
+
+int
 persist_iter_next(persist_iter_t iter, rpc_object_t *result)
 {
 	char *id;

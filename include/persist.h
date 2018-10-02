@@ -263,6 +263,13 @@ int persist_commit_transaction(_Nonnull persist_db_t db);
 int persist_rollback_transaction(_Nonnull persist_db_t db);
 
 /**
+ * Returns @p true if transaction is currently active, otherwise @p false.
+ * @param db Database handle
+ * @return Transaction status
+ */
+bool persist_transaction_active(_Nonnull persist_db_t db);
+
+/**
  *
  * @param iter
  * @return 0 on success, -1 on error

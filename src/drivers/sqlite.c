@@ -88,6 +88,7 @@ static int sqlite_delete_object(void *, const char *, const char *);
 static int sqlite_start_tx(void *);
 static int sqlite_commit_tx(void *);
 static int sqlite_rollback_tx(void *);
+static bool sqlite_in_tx(void *);
 static ssize_t sqlite_count(void *, const char *, rpc_object_t);
 static void *sqlite_query(void *, const char *, rpc_object_t, persist_query_params_t);
 static int sqlite_query_next(void *, char **id, rpc_object_t *);
@@ -518,6 +519,14 @@ sqlite_rollback_tx(void *arg)
 }
 
 static bool
+sqlite_in_tx(void *arg)
+{
+	struct sqlite_context *sqlite = arg;
+
+	return (sqlite3_get_autocommit(sqlite->sc_db) ? false : true);
+}
+
+static bool
 sqlite_eval_logic_and(GString *sql, rpc_object_t lst)
 {
 	size_t len;
@@ -868,6 +877,7 @@ static const struct persist_driver sqlite_driver = {
 	.pd_start_tx = sqlite_start_tx,
 	.pd_commit_tx = sqlite_commit_tx,
 	.pd_rollback_tx = sqlite_rollback_tx,
+	.pd_in_tx = sqlite_in_tx,
 	.pd_count = sqlite_count,
 	.pd_query = sqlite_query,
 	.pd_query_next = sqlite_query_next,

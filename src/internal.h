@@ -54,6 +54,7 @@ struct persist_driver
 	int (*pd_start_tx)(void *);
 	int (*pd_commit_tx)(void *);
 	int (*pd_rollback_tx)(void *);
+	bool (*pd_in_tx)(void *);
 	ssize_t (*pd_count)(void *, const char *, rpc_object_t);
 	void *(*pd_query)(void *, const char *, rpc_object_t, persist_query_params_t);
 	int (*pd_query_next)(void *, char **, rpc_object_t *);
