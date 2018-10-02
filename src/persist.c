@@ -328,6 +328,7 @@ persist_iter_next(persist_iter_t iter, rpc_object_t *result)
 		return (0);
 
 	rpc_dictionary_set_string(*result, "id", id);
+	g_free(id);
 	return (0);
 }
 

@@ -240,9 +240,11 @@ cmd_query(int argc, char *argv[])
 
 	if (!g_option_context_parse(context, &argc, &argv, &err)) {
 		usage(context);
+		g_option_context_free(context);
 		return (1);
 	}
 
+	g_option_context_free(context);
 	col = persist_collection_get(db, colname, false);
 	if (col == NULL) {
 		persist_get_last_error(&errmsg);
@@ -283,6 +285,7 @@ cmd_query(int argc, char *argv[])
 			break;
 
 		print_object(obj);
+		rpc_release(obj);
 	}
 
 	return (0);
