@@ -42,7 +42,7 @@
 #define SQL_GET			"SELECT * FROM %s WHERE id = ?;"
 #define SQL_INSERT		"INSERT OR REPLACE INTO %s (id, value) VALUES (?, ?);"
 #define SQL_DELETE		"DELETE FROM %s WHERE id = ?;"
-#define SQL_ADD_INDEX(_x)	"CREATE INDEX %s_%s ON %s(" SQL_EXTRACT(_x) ");"
+#define SQL_ADD_INDEX(_x)	"CREATE INDEX IF NOT EXISTS %s_%s ON %s(" SQL_EXTRACT(_x) ");"
 #define SQL_DROP_INDEX		"DROP INDEX %s_%s"
 #define SQL_EXTRACT(_x)		"json_quote(json_extract(value, '$." _x "'))"
 #define SQL_JSON(_x)		"json('" _x "')"
