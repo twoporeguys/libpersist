@@ -187,7 +187,7 @@ cmd_query(int argc, char *argv[])
 	ssize_t n_items;
 	bool count = false;
 	struct persist_query_params params = { };
-	char **filter;
+	char **filter = NULL;
 	const char *colname;
 	const char *errmsg;
 	char **ptr;
