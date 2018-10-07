@@ -24,3 +24,18 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 
+import pytest
+import librpc
+import persist
+
+
+class TestDatabase(object):
+    def test_open(self):
+        db = persist.Database('test.db', 'sqlite')
+        assert isinstance(db, persist.Database)
+
+    def test_open_invalid(self):
+        pass
+
+    def test_open_readonly(self):
+        pass

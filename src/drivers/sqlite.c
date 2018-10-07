@@ -85,6 +85,7 @@ static int sqlite_exec(struct sqlite_context *, const char *);
 static int sqlite_unpack(sqlite3_stmt *, char **, rpc_object_t *);
 static struct sqlite_prepared_stmts *sqlite_get_prepared_stmts(
     struct sqlite_context *, const char *);
+static void sqlite_free_prepared_stmts(struct sqlite_prepared_stmts *);
 static int sqlite_open(struct persist_db *);
 static void sqlite_close(struct persist_db *);
 static int sqlite_create_collection(void *, const char *);
@@ -246,6 +247,16 @@ retry:
 	goto retry;
 }
 
+static void
+sqlite_free_prepared_stmts(struct sqlite_prepared_stmts *stmts)
+{
+
+	sqlite3_finalize(stmts->sc_prepared_get);
+	sqlite3_finalize(stmts->sc_prepared_insert);
+	sqlite3_finalize(stmts->sc_prepared_delete);
+	g_free(stmts);
+}
+
 static int
 sqlite_open(struct persist_db *db)
 {
@@ -276,7 +287,7 @@ sqlite_open(struct persist_db *db)
 
 	g_mutex_init(&ctx->sc_mtx);
 	ctx->sc_stmt_cache = g_hash_table_new_full(g_str_hash, g_str_equal,
-	    g_free, g_free);
+	    (GDestroyNotify)g_free, (GDestroyNotify)sqlite_free_prepared_stmts);
 
 	db->pdb_arg = ctx;
 	return (0);

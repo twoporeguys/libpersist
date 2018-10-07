@@ -86,8 +86,11 @@ class TestCollection(object):
         with pytest.raises(TypeError):
             col.set(None)
 
-        with pytest.raises(TypeError):
+        with pytest.raises(persist.PersistException):
             col.set({'not an id': 5})
+
+        with pytest.raises(persist.PersistException):
+            col.set({'id': -1})
 
     def test_invalid_delete(self, db):
         col = db.get_collection('test', True)
