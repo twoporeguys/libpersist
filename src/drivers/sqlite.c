@@ -51,6 +51,8 @@ struct sqlite_context
 {
 	sqlite3 *		sc_db;
 	bool			sc_trace;
+	GHashTable *		sc_stmt_cache;
+	GMutex			sc_mtx;
 };
 
 struct sqlite_iter
@@ -65,6 +67,13 @@ struct sqlite_operator
 	const char *		so_sqlite;
 };
 
+struct sqlite_prepared_stmts
+{
+	sqlite3_stmt *		sc_prepared_get;
+	sqlite3_stmt *		sc_prepared_insert;
+	sqlite3_stmt *		sc_prepared_delete;
+};
+
 static bool sqlite_eval_logic_and(GString *, rpc_object_t);
 static bool sqlite_eval_logic_or(GString *, rpc_object_t);
 static bool sqlite_eval_logic_nor(GString *, rpc_object_t);
@@ -74,6 +83,8 @@ static bool sqlite_eval_rule(GString *, rpc_object_t);
 static int sqlite_trace_callback(unsigned int, void *, void *, void *);
 static int sqlite_exec(struct sqlite_context *, const char *);
 static int sqlite_unpack(sqlite3_stmt *, char **, rpc_object_t *);
+static struct sqlite_prepared_stmts *sqlite_get_prepared_stmts(
+    struct sqlite_context *, const char *);
 static int sqlite_open(struct persist_db *);
 static void sqlite_close(struct persist_db *);
 static int sqlite_create_collection(void *, const char *);
@@ -191,6 +202,50 @@ sqlite_unpack(sqlite3_stmt *stmt, char **idp, rpc_object_t *result)
 	return (0);
 }
 
+static struct sqlite_prepared_stmts *
+sqlite_get_prepared_stmts(struct sqlite_context *sqlite, const char *col)
+{
+	struct sqlite_prepared_stmts *stmts;
+	g_autofree char *get_sql = NULL;
+	g_autofree char *insert_sql = NULL;
+	g_autofree char *delete_sql = NULL;
+
+	g_mutex_lock(&sqlite->sc_mtx);
+
+retry:
+	stmts = g_hash_table_lookup(sqlite->sc_stmt_cache, col);
+	if (stmts != NULL) {
+		g_mutex_unlock(&sqlite->sc_mtx);
+		return (stmts);
+	}
+
+	stmts = g_malloc0(sizeof(*stmts));
+	get_sql = g_strdup_printf(SQL_GET, col);
+	insert_sql = g_strdup_printf(SQL_INSERT, col);
+	delete_sql = g_strdup_printf(SQL_DELETE, col);
+
+	if (sqlite3_prepare_v2(sqlite->sc_db, get_sql, -1,
+	    &stmts->sc_prepared_get, NULL) != SQLITE_OK) {
+		persist_set_last_error(errno, "%s", sqlite3_errmsg(sqlite->sc_db));
+		return (NULL);
+	}
+
+	if (sqlite3_prepare_v2(sqlite->sc_db, insert_sql, -1,
+	    &stmts->sc_prepared_insert, NULL) != SQLITE_OK) {
+		persist_set_last_error(errno, "%s", sqlite3_errmsg(sqlite->sc_db));
+		return (NULL);
+	}
+
+	if (sqlite3_prepare_v2(sqlite->sc_db, delete_sql, -1,
+	    &stmts->sc_prepared_delete, NULL) != SQLITE_OK) {
+		persist_set_last_error(errno, "%s", sqlite3_errmsg(sqlite->sc_db));
+		return (NULL);
+	}
+
+	g_hash_table_insert(sqlite->sc_stmt_cache, g_strdup(col), stmts);
+	goto retry;
+}
+
 static int
 sqlite_open(struct persist_db *db)
 {
@@ -219,6 +274,10 @@ sqlite_open(struct persist_db *db)
 		return (-1);
 	}
 
+	g_mutex_init(&ctx->sc_mtx);
+	ctx->sc_stmt_cache = g_hash_table_new_full(g_str_hash, g_str_equal,
+	    g_free, g_free);
+
 	db->pdb_arg = ctx;
 	return (0);
 }
@@ -230,6 +289,8 @@ sqlite_close(struct persist_db *db)
 
 	ctx = db->pdb_arg;
 	sqlite3_close(ctx->sc_db);
+	g_hash_table_destroy(ctx->sc_stmt_cache);
+	g_mutex_clear(&ctx->sc_mtx);
 	g_free(ctx);
 }
 
@@ -321,17 +382,12 @@ sqlite_get_object(void *arg, const char *collection, const char *id,
     rpc_object_t *obj)
 {
 	struct sqlite_context *sqlite = arg;
+	struct sqlite_prepared_stmts *stmts;
 	sqlite3_stmt *stmt;
-	char *sql;
 	int ret = 0;
 
-	sql = g_strdup_printf(SQL_GET, collection);
-
-	if (sqlite3_prepare_v2(sqlite->sc_db, sql, -1, &stmt,
-	    NULL) != SQLITE_OK) {
-		persist_set_last_error(errno, "%s", sqlite3_errmsg(sqlite->sc_db));
-		return (-1);
-	}
+	stmts = sqlite_get_prepared_stmts(sqlite, collection);
+	stmt = stmts->sc_prepared_get;
 
 	if (sqlite3_bind_text(stmt, 1, id, -1, SQLITE_STATIC) != SQLITE_OK) {
 		persist_set_last_error(errno, "%s", sqlite3_errmsg(sqlite->sc_db));
@@ -357,13 +413,13 @@ retry:
 	default:
 		persist_set_last_error(EFAULT, "%s",
 		    sqlite3_errmsg(sqlite->sc_db));
-		sqlite3_finalize(stmt);
+		sqlite3_clear_bindings(stmt);
+		sqlite3_reset(stmt);
 		return (-1);
 	}
 
-
-	sqlite3_finalize(stmt);
-	g_free(sql);
+	sqlite3_clear_bindings(stmt);
+	sqlite3_reset(stmt);
 	return (ret);
 }
 
@@ -372,7 +428,7 @@ sqlite_save_object(void *arg, const char *collection, const char *id,
     rpc_object_t obj)
 {
 	struct sqlite_context *sqlite = arg;
-	char *sql;
+	struct sqlite_prepared_stmts *stmts;
 	void *buf;
 	size_t len;
 	sqlite3_stmt *stmt;
@@ -387,13 +443,8 @@ sqlite_save_object(void *arg, const char *collection, const char *id,
 		return (-1);
 	}
 
-	sql = g_strdup_printf(SQL_INSERT, collection);
-
-	if (sqlite3_prepare_v2(sqlite->sc_db, sql, -1, &stmt, NULL) != SQLITE_OK) {
-		persist_set_last_error(errno, "%s", sqlite3_errmsg(sqlite->sc_db));
-		ret = -1;
-		goto out;
-	}
+	stmts = sqlite_get_prepared_stmts(sqlite, collection);
+	stmt = stmts->sc_prepared_insert;
 
 	if (sqlite3_bind_text(stmt, 1, id, -1, SQLITE_STATIC) != SQLITE_OK) {
 		persist_set_last_error(errno, "%s", sqlite3_errmsg(sqlite->sc_db));
@@ -427,8 +478,8 @@ retry:
 	}
 
 out:
-	sqlite3_finalize(stmt);
-	g_free(sql);
+	sqlite3_clear_bindings(stmt);
+	sqlite3_reset(stmt);
 	g_free(buf);
 	return (ret);
 }
@@ -442,7 +493,6 @@ sqlite_save_objects(void *arg, const char *collection, rpc_object_t objects)
 		rpc_auto_object_t id = NULL;
 
 		id = rpc_dictionary_detach_key(item, "id");
-
 		if (id == NULL) {
 			persist_set_last_error(EINVAL, "Object has no 'id' key");
 			return (false);
@@ -462,16 +512,12 @@ static int
 sqlite_delete_object(void *arg, const char *collection, const char *id)
 {
 	struct sqlite_context *sqlite = arg;
-	char *sql;
+	struct sqlite_prepared_stmts *stmts;
 	sqlite3_stmt *stmt;
 	int ret = 0;
 
-	sql = g_strdup_printf(SQL_DELETE, collection);
-
-	if (sqlite3_prepare_v2(sqlite->sc_db, sql, -1, &stmt, NULL) != SQLITE_OK) {
-		persist_set_last_error(errno, "%s", sqlite3_errmsg(sqlite->sc_db));
-		return (-1);
-	}
+	stmts = sqlite_get_prepared_stmts(sqlite, collection);
+	stmt = stmts->sc_prepared_delete;
 
 	if (sqlite3_bind_text(stmt, 1, id, -1, SQLITE_STATIC) != SQLITE_OK) {
 		persist_set_last_error(errno, "%s", sqlite3_errmsg(sqlite->sc_db));
@@ -485,12 +531,13 @@ sqlite_delete_object(void *arg, const char *collection, const char *id)
 	default:
 		persist_set_last_error(EFAULT, "%s",
 		    sqlite3_errmsg(sqlite->sc_db));
-		sqlite3_finalize(stmt);
+		sqlite3_clear_bindings(stmt);
+		sqlite3_reset(stmt);
 		return (-1);
 	}
 
-	sqlite3_finalize(stmt);
-	g_free(sql);
+	sqlite3_clear_bindings(stmt);
+	sqlite3_reset(stmt);
 	return (ret);
 }
 
