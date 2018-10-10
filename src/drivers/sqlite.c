@@ -263,6 +263,10 @@ sqlite_open(struct persist_db *db)
 	struct sqlite_context *ctx;
 	int err;
 
+	err = sqlite3_enable_shared_cache(1);
+	if (err != SQLITE_OK)
+		abort();
+
 	ctx = g_malloc0(sizeof(*ctx));
 
 	err = sqlite3_open(db->pdb_path, &ctx->sc_db);

@@ -23,3 +23,70 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <stdio.h>
+#include <glib.h>
+#include <persist.h>
+
+static const char *filename = "/tmp/benchmark.db";
+static const char *driver = "sqlite";
+static int n_inserts = 10000;
+static int inserts_per_tx = 100;
+static int payload_size = 1024;
+
+static GOptionEntry arguments[] = {
+	{
+		.short_name = 'f',
+		.description = "Database path",
+		.arg = G_OPTION_ARG_STRING,
+		.arg_data = &filename
+	},
+	{
+		.short_name = 'd',
+		.description = "Driver name",
+		.arg = G_OPTION_ARG_STRING,
+		.arg_data = &driver,
+	},
+	{
+		.short_name = 's',
+		.description = "Payload size",
+		.arg = G_OPTION_ARG_INT,
+		.arg_data = &payload_size
+	},
+	{
+		.short_name = 'n',
+		.description = "Number of inserts",
+		.arg = G_OPTION_ARG_INT,
+		.arg_data = &n_inserts
+	},
+	{
+		.short_name = 't',
+		.description = "Number of inserts in a transaction",
+		.arg = G_OPTION_ARG_INT,
+		.arg_data = &inserts_per_tx
+	}
+};
+
+int main(int argc, char *argv[])
+{
+	GError *err = NULL;
+	GOptionContext *context;
+	persist_db_t db;
+	const char *errmsg;
+	int i;
+
+	context = g_option_context_new("");
+	g_option_context_add_main_entries(context, arguments, NULL);
+	g_option_context_parse(context, &argc, &argv, &err);
+
+	db = persist_open(filename, driver, NULL);
+	if (db == NULL) {
+		persist_get_last_error(&errmsg);
+		fprintf(stderr, "Cannot open database: %s\n", errmsg);
+		return (1);
+	}
+
+	for (i = 0; i < n_inserts; i++) {
+
+	}
+}

@@ -102,3 +102,4 @@ install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libpersist.pc DESTINATION ${CMAKE_INSTALL_PREFIX}/share/pkgconfig)
 
 add_subdirectory(tools/persisttool)
+add_subdirectory(tests/benchmark)

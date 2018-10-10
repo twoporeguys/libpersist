@@ -25,6 +25,7 @@
  */
 
 #include <glib.h>
+#include <errno.h>
 #include "linker_set.h"
 #include "internal.h"
 
@@ -87,6 +88,7 @@ persist_set_last_error(int code, const char *fmt, ...)
 	err = g_malloc0(sizeof(*err));
 	err->code = code;
 	err->message = g_strdup_vprintf(fmt, ap);
+	errno = code;
 	va_end(ap);
 
 	g_private_replace(&persist_last_error, err);
