@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 	int64_t start;
 	int64_t end;
 	double diff;
-	int i;
+	int i, j;
 
 	context = g_option_context_new("");
 	g_option_context_add_main_entries(context, arguments, NULL);
@@ -114,16 +114,31 @@ int main(int argc, char *argv[])
 
 	start = g_get_monotonic_time();
 
-	for (i = 0; i < n_inserts; i++) {
-		uuid = g_uuid_string_random();
-		obj = rpc_object_pack("{s,s,i,B}",
-		    "id", uuid,
-		    "string", "test",
-		    "num", (int64_t)i,
-		    "data", blob, len, NULL);
 
-		persist_save(col, obj);
-		g_free(uuid);
+	for (i = 0; i < n_inserts / inserts_per_tx; i++) {
+		if (persist_start_transaction(db) != 0) {
+			persist_get_last_error(&errmsg);
+			fprintf(stderr, "Cannot start transaction: %s\n", errmsg);
+			return (1);
+		}
+
+		for (j = 0; j < inserts_per_tx; j++) {
+			uuid = g_uuid_string_random();
+			obj = rpc_object_pack("{s,s,i,B}",
+			    "id", uuid,
+			    "string", "test",
+			    "num", (int64_t)i,
+			    "data", blob, len, NULL);
+
+			persist_save(col, obj);
+			g_free(uuid);
+		}
+
+		if (persist_commit_transaction(db) != 0) {
+			persist_get_last_error(&errmsg);
+			fprintf(stderr, "Cannot commit transaction: %s\n", errmsg);
+			return (1);
+		}
 	}
 
 	end = g_get_monotonic_time();
