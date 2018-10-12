@@ -26,6 +26,7 @@
 
 #include <errno.h>
 #include <glib.h>
+#include <errno.h>
 #include "linker_set.h"
 #include "internal.h"
 
