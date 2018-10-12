@@ -36,6 +36,7 @@
 #include "../internal.h"
 
 #define SQLITE_YIELD_DELAY	(100 * 1000)
+#define SQL_INIT		"PRAGMA journal_mode=WAL; PRAGMA synchronous=OFF;"
 #define SQL_CREATE_TABLE	"CREATE TABLE IF NOT EXISTS %s (id TEXT PRIMARY KEY, value TEXT);"
 #define SQL_DROP_TABLE		"DROP TABLE %s;"
 #define SQL_LIST_TABLES		"SELECT * FROM sqlite_master WHERE TYPE='table';"
@@ -283,7 +284,7 @@ sqlite_open(struct persist_db *db)
 		ctx->sc_trace = true;
 	}
 
-	if (sqlite_exec(ctx, "PRAGMA journal_mode=WAL;") != 0) {
+	if (sqlite_exec(ctx, SQL_INIT) != 0) {
 		sqlite3_close(ctx->sc_db);
 		g_free(ctx);
 		return (-1);
