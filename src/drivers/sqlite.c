@@ -35,7 +35,7 @@
 #include "../linker_set.h"
 #include "../internal.h"
 
-#define SQLITE_YIELD_DELAY	(100 * 1000)
+#define SQLITE_YIELD_DELAY	(1 * 1000)
 #define SQL_INIT		"PRAGMA journal_mode=WAL; PRAGMA synchronous=OFF;"
 #define SQL_CREATE_TABLE	"CREATE TABLE IF NOT EXISTS %s (id TEXT PRIMARY KEY, value TEXT);"
 #define SQL_DROP_TABLE		"DROP TABLE %s;"
@@ -107,7 +107,7 @@ static void *sqlite_query(void *, const char *, rpc_object_t, persist_query_para
 static int sqlite_query_next(void *, char **id, rpc_object_t *);
 static void sqlite_query_close(void *);
 
-static GMutex commit_mtx;
+static GMutex sqlite_mtx;
 static const struct sqlite_operator sqlite_operator_table[] = {
 	{ "=", "=" },
 	{ "!=", "!=" },
@@ -477,7 +477,10 @@ sqlite_save_object(void *arg, const char *collection, const char *id,
 	}
 
 retry:
+	g_mutex_lock(&sqlite_mtx);
 	err = sqlite3_step(stmt);
+	g_mutex_unlock(&sqlite_mtx);
+
 	switch (err) {
 	case SQLITE_DONE:
 		break;
@@ -562,8 +565,13 @@ static int
 sqlite_start_tx(void *arg)
 {
 	struct sqlite_context *sqlite = arg;
+	int ret;
 
-	return (sqlite_exec(sqlite, "BEGIN TRANSACTION;"));
+	g_mutex_lock(&sqlite_mtx);
+	ret = sqlite_exec(sqlite, "BEGIN TRANSACTION;");
+	g_mutex_unlock(&sqlite_mtx);
+
+	return (ret);
 }
 
 static int
@@ -572,9 +580,9 @@ sqlite_commit_tx(void *arg)
 	struct sqlite_context *sqlite = arg;
 	int ret;
 
-	g_mutex_lock(&commit_mtx);
+	g_mutex_lock(&sqlite_mtx);
 	ret = sqlite_exec(sqlite, "COMMIT TRANSACTION;");
-	g_mutex_unlock(&commit_mtx);
+	g_mutex_unlock(&sqlite_mtx);
 
 	return (ret);
 }
