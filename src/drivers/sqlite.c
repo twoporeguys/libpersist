@@ -150,8 +150,10 @@ sqlite_exec(struct sqlite_context *ctx, const char *sql)
 	char *errmsg;
 	int ret;
 
-	retry:
+retry:
+	g_mutex_lock(&sqlite_mtx);
 	ret = sqlite3_exec(ctx->sc_db, sql, NULL, NULL, &errmsg);
+	g_mutex_unlock(&sqlite_mtx);
 
 	switch (ret) {
 		case SQLITE_OK:
@@ -565,26 +567,16 @@ static int
 sqlite_start_tx(void *arg)
 {
 	struct sqlite_context *sqlite = arg;
-	int ret;
 
-	g_mutex_lock(&sqlite_mtx);
-	ret = sqlite_exec(sqlite, "BEGIN TRANSACTION;");
-	g_mutex_unlock(&sqlite_mtx);
-
-	return (ret);
+	return (sqlite_exec(sqlite, "BEGIN TRANSACTION;"));
 }
 
 static int
 sqlite_commit_tx(void *arg)
 {
 	struct sqlite_context *sqlite = arg;
-	int ret;
 
-	g_mutex_lock(&sqlite_mtx);
-	ret = sqlite_exec(sqlite, "COMMIT TRANSACTION;");
-	g_mutex_unlock(&sqlite_mtx);
-
-	return (ret);
+	return (sqlite_exec(sqlite, "COMMIT TRANSACTION;"));
 }
 
 static int
