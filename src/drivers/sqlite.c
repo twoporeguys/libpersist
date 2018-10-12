@@ -107,6 +107,7 @@ static void *sqlite_query(void *, const char *, rpc_object_t, persist_query_para
 static int sqlite_query_next(void *, char **id, rpc_object_t *);
 static void sqlite_query_close(void *);
 
+static GMutex commit_mtx;
 static const struct sqlite_operator sqlite_operator_table[] = {
 	{ "=", "=" },
 	{ "!=", "!=" },
@@ -569,8 +570,13 @@ static int
 sqlite_commit_tx(void *arg)
 {
 	struct sqlite_context *sqlite = arg;
+	int ret;
 
-	return (sqlite_exec(sqlite, "COMMIT TRANSACTION;"));
+	g_mutex_lock(&commit_mtx);
+	ret = sqlite_exec(sqlite, "COMMIT TRANSACTION;");
+	g_mutex_unlock(&commit_mtx);
+
+	return (ret);
 }
 
 static int
