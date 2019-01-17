@@ -279,7 +279,8 @@ cdef class Collection(object):
     def query(self, rules, sort=None, descending=False, offset=None, limit=None):
         cdef persist_iter_t iter
         cdef persist_query_params params
-        cdef rpc_object_t rpc_rules = Object(rules).unwrap()
+        cdef Object rpc_rules = Object(rules);
+        cdef rpc_object_t raw_rules = rpc_rules.unwrap()
 
         if not self.parent.is_open:
             raise ValueError('Database is closed')
@@ -300,7 +301,7 @@ cdef class Collection(object):
             params.limit = limit
 
         with nogil:
-            iter = persist_query(self.collection, rpc_rules, &params)
+            iter = persist_query(self.collection, raw_rules, &params)
 
         if iter == <persist_iter_t>NULL:
             check_last_error()
