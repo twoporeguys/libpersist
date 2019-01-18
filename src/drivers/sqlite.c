@@ -922,7 +922,11 @@ sqlite_query_close(void *q_arg)
 {
 	struct sqlite_iter *iter = q_arg;
 
-	sqlite3_finalize(iter->si_stmt);
+	if (iter->si_stmt != NULL) {
+		fprintf(stderr, "Attempting to call sqlite3_finalize...");
+		sqlite3_finalize(iter->si_stmt);
+	} else
+		fprintf(stderr, "iter->si_stmt == NULL");
 	g_free(iter);
 
 }
