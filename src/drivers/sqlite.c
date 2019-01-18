@@ -922,13 +922,16 @@ sqlite_query_close(void *q_arg)
 {
 	struct sqlite_iter *iter = q_arg;
 
+	fprintf(stderr, "Entered sqlite_query_close...\n");
 	if (iter->si_stmt != NULL) {
-		fprintf(stderr, "Attempting to call sqlite3_finalize...");
+		fprintf(stderr, "sqlite_query_close: Attempting to call sqlite3_finalize...");
 		sqlite3_finalize(iter->si_stmt);
 	} else
-		fprintf(stderr, "iter->si_stmt == NULL");
+		fprintf(stderr, "sqlite_query_close: iter->si_stmt == NULL");
+	fprintf(stderr, "sqlite_query_close: calling g_free(iter)...\n");
 	g_free(iter);
 
+	fprintf(stderr, "Leaving sqlite_query_close...\n");
 }
 
 static const struct persist_driver sqlite_driver = {
