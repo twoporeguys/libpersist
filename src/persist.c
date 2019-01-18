@@ -336,9 +336,15 @@ persist_iter_next(persist_iter_t iter, rpc_object_t *result)
 void
 persist_iter_close(persist_iter_t iter)
 {
-
-	iter->pi_col->pc_db->pdb_driver->pd_query_close(iter->pi_arg);
-	g_free(iter);
+	if (iter != NULL) {
+		if (iter->pi_arg != NULL )
+			iter->pi_col->pc_db->pdb_driver->pd_query_close(iter->pi_arg);
+		else
+			fprintf(stderr, "iter->pi_arg is NULL!!\n");
+		g_free(iter);
+	} else {
+		fprintf(stderr, "Iterator is already NULL!!\n");
+	}
 }
 
 int
