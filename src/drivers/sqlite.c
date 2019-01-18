@@ -493,12 +493,12 @@ retry:
 	}
 
 out:
-	if ( ((Vdbe*)stmt)->db == NULL || ((Vdbe*)stmt)->db == 0) {
-		fprintf(stderr, "Database is already closed!!!\n");
-	} else {
-		sqlite3_clear_bindings(stmt);
-		sqlite3_reset(stmt);
-	}
+	// if ( ((Vdbe*)stmt)->db == NULL || ((Vdbe*)stmt)->db == 0) {
+	// 	fprintf(stderr, "Database is already closed!!!\n");
+	// } else {
+	sqlite3_clear_bindings(stmt);
+	sqlite3_reset(stmt);
+	// }
 	g_free(buf);
 	return (ret);
 }
