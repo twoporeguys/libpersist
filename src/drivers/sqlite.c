@@ -301,7 +301,7 @@ static void
 sqlite_close(struct persist_db *db)
 {
 	struct sqlite_context *ctx;
-
+	fprintf(stderr, "Entering sqlite_close...");
 	ctx = db->pdb_arg;
 	sqlite3_close(ctx->sc_db);
 	g_hash_table_destroy(ctx->sc_stmt_cache);
@@ -920,9 +920,10 @@ retry:
 static void
 sqlite_query_close(void *q_arg)
 {
+	fprintf(stderr, "Entered sqlite_query_close...\n");
+
 	struct sqlite_iter *iter = q_arg;
 
-	fprintf(stderr, "Entered sqlite_query_close...\n");
 	if (iter->si_stmt != NULL) {
 		fprintf(stderr, "sqlite_query_close: Attempting to call sqlite3_finalize...");
 		sqlite3_finalize(iter->si_stmt);
