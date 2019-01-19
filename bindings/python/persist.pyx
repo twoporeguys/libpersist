@@ -355,7 +355,9 @@ cdef class CollectionIterator(object):
         return self.__next__()
 
     def close(self):
-        if self.parent.unwrap() != <persist_collection_t>NULL and self.iter != <persist_iter_t>NULL:
+        cdef persist_collection_t parent_col
+        parent_col = self.parent.unwrap()
+        if parent_col != <persist_collection_t>NULL and self.iter != <persist_iter_t>NULL:
             # Close our iterator
             persist_iter_close(self.iter)
             self.iter = <persist_iter_t>NULL
