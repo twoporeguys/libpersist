@@ -288,19 +288,20 @@ cdef class Collection(object):
 
         persist_delete(self.collection, id.encode('utf-8'))
 
-    def count(self, rules):
+    def count(self, rules=[]):
         cdef ssize_t result
-        cdef rpc_object_t rpc_rules = Object(rules).unwrap()
+        cdef Object rpc_rules = Object(rules);
+        cdef rpc_object_t raw_rules = rpc_rules.unwrap()
 
         with nogil:
-            result = persist_count(self.collection, rpc_rules)
+            result = persist_count(self.collection, raw_rules)
 
         if result == -1:
             check_last_error()
 
         return result
 
-    def query(self, rules, sort=None, descending=False, offset=None, limit=None):
+    def query(self, rules=[], sort=None, descending=False, offset=None, limit=None):
         cdef persist_iter_t iter
         cdef persist_query_params params
         cdef Object rpc_rules = Object(rules);
