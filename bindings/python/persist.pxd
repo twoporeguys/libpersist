@@ -97,6 +97,7 @@ cdef class Database(object):
 
     @staticmethod
     cdef bint c_apply_callback(void *arg, const char *name)
+    cdef persist_db_t unwrap(self) nogil
 
 
 cdef class Collection(object):
