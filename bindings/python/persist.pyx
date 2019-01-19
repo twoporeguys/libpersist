@@ -106,11 +106,12 @@ cdef class Database(object):
         if not create and not persist_collection_exists(self.db, name.encode('utf-8')):
             raise NameError('Collection {} does not exist'.format(name))
 
-        collection = persist_collection_get(self.db, name.encode('utf-8'), create)
+        persist_col = persist_collection_get(self.db, name.encode('utf-8'), create)
 
+        collection = Collection.wrap(self, persist_col)
         self.collections.append(collection)
 
-        return Collection.wrap(self, collection)
+        return collection
 
     def create_collection(self, name):
         if self.db == <persist_db_t>NULL:
