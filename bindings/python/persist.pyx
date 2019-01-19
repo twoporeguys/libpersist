@@ -223,9 +223,11 @@ cdef class Collection(object):
     def close(self):
         if self.parent.is_open:
             # Close our queries
-            for quer in self.queries:
-                quer.close()
-            persist_collection_close(self.collection)
+            if self.collection != <persist_collection_t>NULL:
+                for quer in self.queries:
+                    quer.close()
+
+                persist_collection_close(self.collection)
 
         self.collection = <persist_collection_t>NULL
 
