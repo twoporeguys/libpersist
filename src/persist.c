@@ -23,8 +23,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#include <stdio.h>
-#include <stdlib.h>
+
 #include <errno.h>
 #include <glib.h>
 #include <rpc/object.h>
@@ -77,9 +76,8 @@ persist_open(const char *path, const char *driver, rpc_object_t params)
 void
 persist_close(persist_db_t db)
 {
-	fprintf(stderr, "Entering persist_close...\n");
+
 	db->pdb_driver->pd_close(db);
-	fprintf(stderr, "Leaving persist_close...\n");
 }
 
 persist_collection_t
@@ -338,26 +336,9 @@ persist_iter_next(persist_iter_t iter, rpc_object_t *result)
 void
 persist_iter_close(persist_iter_t iter)
 {
-	fprintf(stderr, "Entered persist_iter_close...\n");
-	if (iter != NULL) {
-		if (iter->pi_arg != NULL ) {
-			if (iter->pi_col != NULL ) {
-				if (iter->pi_col->pc_db != NULL )
-					iter->pi_col->pc_db->pdb_driver->pd_query_close(iter->pi_arg);
-				else
-					fprintf(stderr, "persist_iter_close: iter->pi_col->pc_db == NULL!!\n");
-			} else {
-				fprintf(stderr, "persist_iter_close: iter->pi_col == NULL!!\n");
-			}
-		} else {
-			fprintf(stderr, "persist_iter_close: iter->pi_arg is NULL!!\n");
-		}
-		fprintf(stderr, "persist_iter_close: calling g_free(iter)...\n");
-		g_free(iter);
-	} else {
-		fprintf(stderr, "persist_iter_close: Iterator is already NULL!!\n");
-	}
-	fprintf(stderr, "Leaving persist_iter_close...\n");
+
+	iter->pi_col->pc_db->pdb_driver->pd_query_close(iter->pi_arg);
+	g_free(iter);
 }
 
 int
