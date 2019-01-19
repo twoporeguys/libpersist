@@ -56,6 +56,9 @@ cdef class Database(object):
         if self.db != <persist_db_t>NULL:
             logger.warning('Leaking memory')
 
+    cdef persist_db_t unwrap(self) nogil:
+        return self.db
+
     def open(self):
         self.db = persist_open(
             self.path.encode('utf-8'),
@@ -218,7 +221,8 @@ cdef class Collection(object):
             return self.collection != <persist_collection_t>NULL
 
     def close(self):
-        if self.parent.db != <persist_db_t>NULL:
+        cdef parent_db = self.parent.unwrap()
+        if parent_db != <persist_db_t>NULL:
             # Close our queries
             for quer in self.queries:
                 quer.close()
