@@ -95,7 +95,7 @@ cdef class Database(object):
         return persist_collection_exists(self.db, name.encode('utf-8'))
 
     def get_collection(self, name, create=False):
-        cdef persist_collection_t collection
+        cdef persist_collection_t persist_col
 
         if self.db == <persist_db_t>NULL:
             raise ValueError('Database is closed')
@@ -107,8 +107,8 @@ cdef class Database(object):
             raise NameError('Collection {} does not exist'.format(name))
 
         persist_col = persist_collection_get(self.db, name.encode('utf-8'), create)
-
         collection = Collection.wrap(self, persist_col)
+
         self.collections.append(collection)
 
         return collection
