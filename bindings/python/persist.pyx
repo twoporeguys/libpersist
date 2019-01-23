@@ -50,10 +50,14 @@ cdef class Database(object):
         self.path = path
         self.driver = driver
         self.params = rpc_params
+        self.collections = []
 
     def __dealloc__(self):
         if self.db != <persist_db_t>NULL:
             logger.warning('Leaking memory')
+
+    cdef persist_db_t unwrap(self) nogil:
+        return self.db
 
     def open(self):
         self.db = persist_open(
@@ -66,6 +70,9 @@ cdef class Database(object):
 
     def close(self):
         if self.db != <persist_db_t>NULL:
+            # Close our collections
+            for col in self.collections:
+                col.close()
             persist_close(self.db)
 
         self.db = <persist_db_t>NULL
@@ -91,7 +98,7 @@ cdef class Database(object):
         return persist_collection_exists(self.db, name.encode('utf-8'))
 
     def get_collection(self, name, create=False):
-        cdef persist_collection_t collection
+        cdef persist_collection_t persist_col
 
         if self.db == <persist_db_t>NULL:
             raise ValueError('Database is closed')
@@ -102,9 +109,12 @@ cdef class Database(object):
         if not create and not persist_collection_exists(self.db, name.encode('utf-8')):
             raise NameError('Collection {} does not exist'.format(name))
 
-        collection = persist_collection_get(self.db, name.encode('utf-8'), create)
+        persist_col = persist_collection_get(self.db, name.encode('utf-8'), create)
+        collection = Collection.wrap(self, persist_col)
 
-        return Collection.wrap(self, collection)
+        self.collections.append(collection)
+
+        return collection
 
     def create_collection(self, name):
         if self.db == <persist_db_t>NULL:
@@ -199,11 +209,27 @@ cdef class Collection(object):
         ret = Collection.__new__(Collection)
         ret.collection = ptr
         ret.parent = parent
+        ret.queries = []
 
         return ret
 
     cdef persist_collection_t unwrap(self) nogil:
         return self.collection
+
+    property is_open:
+        def __get__(self):
+            return self.collection != <persist_collection_t>NULL
+
+    def close(self):
+        if self.parent.is_open:
+            # Close our queries
+            if self.collection != <persist_collection_t>NULL:
+                for quer in self.queries:
+                    quer.close()
+
+                persist_collection_close(self.collection)
+
+        self.collection = <persist_collection_t>NULL
 
     def get(self, id, default=None):
         cdef rpc_object_t ret
@@ -264,19 +290,20 @@ cdef class Collection(object):
 
         persist_delete(self.collection, id.encode('utf-8'))
 
-    def count(self, rules):
+    def count(self, rules=[]):
         cdef ssize_t result
-        cdef rpc_object_t rpc_rules = Object(rules).unwrap()
+        cdef Object rpc_rules = Object(rules);
+        cdef rpc_object_t raw_rules = rpc_rules.unwrap()
 
         with nogil:
-            result = persist_count(self.collection, rpc_rules)
+            result = persist_count(self.collection, raw_rules)
 
         if result == -1:
             check_last_error()
 
         return result
 
-    def query(self, rules, sort=None, descending=False, offset=None, limit=None):
+    def query(self, rules=[], sort=None, descending=False, offset=None, limit=None):
         cdef persist_iter_t iter
         cdef persist_query_params params
         cdef Object rpc_rules = Object(rules);
@@ -306,7 +333,10 @@ cdef class Collection(object):
         if iter == <persist_iter_t>NULL:
             check_last_error()
 
-        return CollectionIterator.wrap(iter)
+        citer = CollectionIterator.wrap(self, iter)
+        self.queries.append(citer)
+
+        return citer
 
 
 cdef class CollectionIterator(object):
@@ -335,13 +365,20 @@ cdef class CollectionIterator(object):
     def next(self):
         return self.__next__()
 
+    def close(self):
+        if self.parent.is_open and self.iter != <persist_iter_t>NULL:
+            # Close our iterator
+            persist_iter_close(self.iter)
+            self.iter = <persist_iter_t>NULL
+
     @staticmethod
-    cdef CollectionIterator wrap(persist_iter_t iter):
+    cdef CollectionIterator wrap(object parent, persist_iter_t iter):
         cdef CollectionIterator ret
 
         ret = CollectionIterator.__new__(CollectionIterator)
         ret.iter = iter
         ret.cnt = True
+        ret.parent = parent
 
         return ret
 

@@ -93,14 +93,17 @@ cdef class Database(object):
     cdef object path
     cdef object driver
     cdef Object params
+    cdef object collections
 
     @staticmethod
     cdef bint c_apply_callback(void *arg, const char *name)
+    cdef persist_db_t unwrap(self) nogil
 
 
 cdef class Collection(object):
     cdef persist_collection_t collection
     cdef object parent
+    cdef object queries
 
     @staticmethod
     cdef Collection wrap(object parent, persist_collection_t ptr)
@@ -110,6 +113,7 @@ cdef class Collection(object):
 cdef class CollectionIterator(object):
     cdef persist_iter_t iter
     cdef object cnt
+    cdef object parent
 
     @staticmethod
-    cdef CollectionIterator wrap(persist_iter_t iter)
+    cdef CollectionIterator wrap(object parent, persist_iter_t iter)
