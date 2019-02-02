@@ -290,12 +290,4 @@ void persist_iter_close(_Nonnull persist_iter_t iter);
  */
 int persist_get_last_error(const char *_Nullable *_Nonnull msgp);
 
-
-/**
- * For SQLite drivers. Writes the WAL to disk.
- *
- * @param db Database handle
- */
-int persist_checkpoint(_Nonnull persist_db_t db);
-
 #endif /* LIBPERSIST_PERSIST_H */

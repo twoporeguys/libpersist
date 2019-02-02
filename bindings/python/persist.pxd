@@ -86,7 +86,7 @@ cdef extern from "persist.h" nogil:
     void persist_collection_close(persist_collection_t collection)
     void persist_iter_close(persist_iter_t iter)
     int persist_iter_next(persist_iter_t iter, rpc_object_t *result)
-    int persist_checkpoint(persist_db_t db)
+
 
 cdef class Database(object):
     cdef persist_db_t db

@@ -188,11 +188,6 @@ cdef class Database(object):
 
         return names
 
-    def checkpoint(self):
-        if self.db != <persist_db_t>NULL:
-            # Send the checkpoint command
-            return persist_checkpoint(self.db)
-
     @staticmethod
     cdef bint c_apply_callback(void *arg, const char *name):
         cdef object cb = <object>arg

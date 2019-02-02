@@ -348,10 +348,3 @@ persist_delete(persist_collection_t col, const char *id)
 	return (col->pc_db->pdb_driver->pd_delete_object(col->pc_db->pdb_arg,
 	    col->pc_name, id));
 }
-
-int
-persist_checkpoint(_Nonnull persist_db_t db)
-{
-
-	return (db->pdb_driver->pd_checkpoint(db));
-}
