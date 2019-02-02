@@ -59,6 +59,7 @@ struct persist_driver
 	void *(*pd_query)(void *, const char *, rpc_object_t, persist_query_params_t);
 	int (*pd_query_next)(void *, char **, rpc_object_t *);
 	void (*pd_query_close)(void *);
+	int (*pd_checkpoint)(void *);
 };
 
 struct persist_db

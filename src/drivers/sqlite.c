@@ -105,6 +105,7 @@ static ssize_t sqlite_count(void *, const char *, rpc_object_t);
 static void *sqlite_query(void *, const char *, rpc_object_t, persist_query_params_t);
 static int sqlite_query_next(void *, char **id, rpc_object_t *);
 static void sqlite_query_close(void *);
+static int sqlite_checkpoint(void *);
 
 static const struct sqlite_operator sqlite_operator_table[] = {
 	{ "=", "=" },
@@ -588,6 +589,14 @@ sqlite_in_tx(void *arg)
 	return (sqlite3_get_autocommit(sqlite->sc_db) ? false : true);
 }
 
+static int
+sqlite_checkpoint(void *arg)
+{
+	struct sqlite_context *sqlite = arg;
+
+	return (sqlite3_wal_checkpoint(sqlite->sc_db, NULL));
+}
+
 static bool
 sqlite_eval_logic_and(GString *sql, rpc_object_t lst)
 {
@@ -944,6 +953,7 @@ static const struct persist_driver sqlite_driver = {
 	.pd_query = sqlite_query,
 	.pd_query_next = sqlite_query_next,
 	.pd_query_close = sqlite_query_close,
+	.pd_checkpoint = sqlite_checkpoint,
 };
 
 DECLARE_DRIVER(sqlite_driver);
